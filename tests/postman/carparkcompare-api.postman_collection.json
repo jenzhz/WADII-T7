@@ -1,0 +1,108 @@
+{
+  "info": {
+    "_postman_id": "a3bb0c1b-5954-49b5-bbc5-109dc336f7fb",
+    "name": "CarparkCompare SG API",
+    "description": "Starter requests for the Express REST API. Feature requests intentionally return 501 until implemented.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{ "key": "baseUrl", "value": "http://localhost:3000", "type": "string" }],
+  "item": [
+    {
+      "name": "Health",
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('API is healthy', function () {",
+          "  pm.response.to.have.status(200);",
+          "  pm.expect(pm.response.json().success).to.eql(true);",
+          "});"
+        ] }
+      }],
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/health" }
+    },
+    {
+      "name": "Users - Register placeholder",
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('Placeholder returns 501', function () {",
+          "  pm.response.to.have.status(501);",
+          "});"
+        ] }
+      }],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{}" },
+        "url": "{{baseUrl}}/api/users/register"
+      }
+    },
+    {
+      "name": "Favourites - List placeholder",
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('Placeholder returns 501', function () {",
+          "  pm.response.to.have.status(501);",
+          "});"
+        ] }
+      }],
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/favourites" }
+    },
+    {
+      "name": "Carparks - Nearby placeholder",
+      "event": [{
+        "listen": "test",
+        "script": { "type": "text/javascript", "exec": [
+          "pm.test('Placeholder returns 501', function () {",
+          "  pm.response.to.have.status(501);",
+          "});"
+        ] }
+      }],
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/carparks/nearby" }
+    },
+    {
+      "name": "Users - Login placeholder",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"student@example.com\",\n  \"password\": \"change-me\"\n}" },
+        "url": "{{baseUrl}}/api/users/login"
+      }
+    },
+    {
+      "name": "Users - Profile placeholder",
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/users/profile" }
+    },
+    {
+      "name": "Carparks - All placeholder",
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/carparks" }
+    },
+    {
+      "name": "Carparks - Details placeholder",
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/carparks/A001" }
+    },
+    {
+      "name": "Locations - Search placeholder",
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/locations/search?q=Suntec" }
+    },
+    {
+      "name": "Locations - Walking route placeholder",
+      "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/locations/walking-route" }
+    },
+    {
+      "name": "Favourites - Create placeholder",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"type\": \"carpark\",\n  \"label\": \"Marina Square\",\n  \"carparkId\": \"A001\",\n  \"latitude\": 1.291,\n  \"longitude\": 103.857\n}" },
+        "url": "{{baseUrl}}/api/favourites"
+      }
+    },
+    {
+      "name": "Favourites - Delete placeholder",
+      "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/api/favourites/replace-with-favourite-id" }
+    }
+  ]
+}
+
