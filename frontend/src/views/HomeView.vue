@@ -1,6 +1,9 @@
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router' 
 import api from '@/services/api'
+
+const router = useRouter()
 
 
 const destination = ref("")
@@ -34,6 +37,30 @@ function selectDestination(item) {
   results.value = []
   console.log(selectedDestination.value)
 }
+
+function goToResults() {
+  if (selectedDestination.value === null) {
+    return
+  }
+
+  router.push({
+    name : "results",
+    query : {
+      destination : selectedDestination.value.SEARCHVAL,
+      latitude : selectedDestination.value.LATITUDE,
+      longitude : selectedDestination.value.LONGITUDE,
+      vehicleType : vehicleType.value
+    }
+  })
+
+}
+
+
+
+
+
+
+
 
 </script>
 
@@ -98,7 +125,7 @@ function selectDestination(item) {
                 </select>
               </div>
 
-              <button class="btn btn-primary w-100" type="button" @click="searchDestination">
+              <button class="btn btn-primary w-100" type="button" @click="goToResults">
                 Search
               </button>
             </div>
