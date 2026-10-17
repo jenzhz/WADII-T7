@@ -3,8 +3,25 @@
  * Authentication and API calls are intentionally not implemented.
  */
 
-export async function searchLocation() {
-  throw new Error('OneMap location search is not implemented yet.')
+import axios from 'axios'
+
+export async function searchLocation(destination) {
+  const url = 'https://www.onemap.gov.sg/api/common/elastic/search'
+
+  const response = await axios.get(url, {
+    params : {
+      searchVal : destination,
+      returnGeom : 'Y',
+      getAddrDetails : 'Y',
+      pageNum :1
+    },
+
+
+    headers: {
+      Authorization: process.env.ONEMAP_TOKEN
+    }
+  })
+  return response.data
 }
 
 export async function getWalkingRoute() {
