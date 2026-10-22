@@ -9,21 +9,21 @@ const props = defineProps({
     carparks: { type: Array, default: () => [] },
     destination: { type: Object, default: null },
     contextQuery: { type: Object, default: () => ({}) },
-})
-const emit = defineEmits(['update:destination'])
+});
+const emit = defineEmits(['update:destination']);
 
-const router = useRouter()
-const mapElement = ref(null)
-let map
-let markerLayer
-let destinationMarker
+const router = useRouter();
+const mapElement = ref(null);
+let map;
+let markerLayer;
+let destinationMarker;
 const carparkIcon = L.icon({
     iconUrl: carparkIconUrl,
     iconSize: [32, 32],
     iconAnchor: [16, 32],
     popupAnchor: [0, -32],
     className: 'carpark-marker-icon',
-})
+});
 
 const unavailableCarparkIcon = L.icon({
     iconUrl: carparkIconUrl,
@@ -31,7 +31,7 @@ const unavailableCarparkIcon = L.icon({
     iconAnchor: [16, 32],
     popupAnchor: [0, -32],
     className: 'carpark-marker-icon carpark-marker-icon--unavailable',
-})
+});
 
 function escapeHtml(value) {
     return String(value).replace(/[&<>'"]/g, character => ({
@@ -40,10 +40,13 @@ function escapeHtml(value) {
 }
 
 function renderMarkers() {
-  if (!map) return
-  markerLayer?.clearLayers()
-  markerLayer = L.layerGroup().addTo(map)
-  destinationMarker = null
+  if (!map){
+      return;
+  } 
+
+  markerLayer?.clearLayers();
+  markerLayer = L.layerGroup().addTo(map);
+  destinationMarker = null;
 
   const bounds = []
   for (const carpark of props.carparks) {
@@ -58,9 +61,9 @@ function renderMarkers() {
           params: { id: carpark.id },
           query: props.contextQuery,
       }).href
-      marker.bindPopup(`<strong>${escapeHtml(carpark.name)}</strong><br>Available lots: ${escapeHtml(carpark.availableLots ?? 'Unavailable')}<br><a href="${escapeHtml(detailsHref)}">View details</a>`)
-      marker.addTo(markerLayer)
-      bounds.push([carpark.latitude, carpark.longitude])
+      marker.bindPopup(`<strong>${escapeHtml(carpark.name)}</strong><br>Available lots: ${escapeHtml(carpark.availableLots ?? 'Unavailable')}<br><a href="${escapeHtml(detailsHref)}">View details</a>`);
+      marker.addTo(markerLayer);
+      bounds.push([carpark.latitude, carpark.longitude]);
     }
 
     // destination marker
@@ -71,36 +74,42 @@ function renderMarkers() {
           fillColor: '#dc6b5d',
           fillOpacity: 0.95,
           weight: 2,
-      }).bindPopup('<strong>Destination</strong>').addTo(markerLayer)
-      bounds.push([props.destination.latitude, props.destination.longitude])
+      }).bindPopup('<strong>Destination</strong>').addTo(markerLayer);
+      bounds.push([props.destination.latitude, props.destination.longitude]);
     }
 
-    if (bounds.length > 0) map.fitBounds(bounds, { padding: [32, 32], maxZoom: 16 })
+    if (bounds.length > 0){ 
+        map.fitBounds(bounds, { padding: [32, 32], maxZoom: 16 }) 
+    }
 }
 
 function moveDestination(event) {
-    const latitude = Number(event.latlng.lat.toFixed(6))
-    const longitude = Number(event.latlng.lng.toFixed(6))
-    destinationMarker?.setLatLng([latitude, longitude])
-    emit('update:destination', { latitude, longitude })
+    const latitude = Number(event.latlng.lat.toFixed(6));
+    const longitude = Number(event.latlng.lng.toFixed(6));
+
+    destinationMarker?.setLatLng([latitude, longitude]);
+    emit('update:destination', { latitude, longitude });
 }
 
 onMounted(() => {
-    map = L.map(mapElement.value).setView([1.3521, 103.8198], 12)
+    map = L.map(mapElement.value).setView([1.3521, 103.8198], 18);
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
-    }).addTo(map)
-    map.on('click', moveDestination)
-    renderMarkers()
+    }).addTo(map);
+    
+    map.on('click', moveDestination);
+    renderMarkers();
 })
 
-watch(() => props.carparks, renderMarkers, { deep: true })
+watch(() => props.carparks, renderMarkers, { deep: true });
 
 onBeforeUnmount(() => {
     markerLayer?.clearLayers()
     map?.off('click', moveDestination)
     map?.remove()
 })
+
 </script>
 
 <template>
