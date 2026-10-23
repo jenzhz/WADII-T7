@@ -37,7 +37,7 @@ export function calculateScore(carpark, weights = {lots: 0.7, walk:0.3}) {
 // Will score and order carparks without mutating the original array.
 export function rankCarparks(carparks, weights = {lots:0.7, walk:0.3}) {
   const  scored = carparks.map(carpark => ({
-    name: carpark,
+    ...carpark,
     score: calculateScore(carpark, weights)
   }))
   scored.sort((a, b) => b.score - a.score)
