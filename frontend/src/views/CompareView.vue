@@ -66,7 +66,7 @@ function toggle(id) {
           <td>{{ carpark.rank }}</td>
           <td>{{ carpark.name }}</td>
           <td>{{ toStar(carpark.score) }}</td>
-          <td>
+          <td class="text-center">
             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" @click="toggle(carpark.id)">
               {{ expandedIds.includes(carpark.id) ? 'Hide' : 'More' }}
             </button>
