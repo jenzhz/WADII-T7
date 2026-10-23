@@ -1,9 +1,28 @@
+<script setup>
+import {computed} from 'vue'
+import {useRoute} from 'vue-router'
+import {mockCarparks} from '../data/mockCarparks'
+import { rankCarparks } from '../utils/ranking';
+
+const route = useRoute()
+const selectedIds = computed(()=>{
+  const ids = route.query.ids
+  if (!ids){
+    return []
+  }
+  return ids.split(',')
+})
+
+const selectedCarparks = computed (()=>
+  mockCarparks.filter(carpark => selectedIds.value.includes(carpark.id))
+)
+const ranked = computed (()=> rankCarparks(selectedCarparks.value))
+</script>
+
 <template>
-  <section class="row">
-    <div class="col-lg-8">
-      <h1>Compare Carparks</h1>
-      <p class="lead">Selected carparks will eventually be compared and ranked here.</p>
-    </div>
-  </section>
+    <p v-for="carpark in ranked" :key = 'carpark.id'>
+      {{ carpark.rank }} {{ carpark.name }} - {{ carpark.score }}
+
+    </p>
 </template>
 
