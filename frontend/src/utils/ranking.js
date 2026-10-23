@@ -28,19 +28,18 @@ export function getWalkingMinutes(carpark) {
 }
 
 // Will combine agreed weightages after the team defines the scoring formula.
-export function calculateScore(carpark, weights = {lots: 0.7, walk:0.3}) {
+export function calculateScore(carpark, weight) {
   const lotsScore = normaliseAvailability(carpark.availableLots)
   const walkScore = normaliseWalkingTime(getWalkingMinutes(carpark))
-  return lotsScore * weights.lots + walkScore * weights.walk
+  return lotsScore * weight.lots + walkScore * weight.walk
 }
 
 // Will score and order carparks without mutating the original array.
-export function rankCarparks(carparks, weights = {lots:0.7, walk:0.3}) {
+export function rankCarparks(carparks, weight) {
   const  scored = carparks.map(carpark => ({
     ...carpark,
-    score: calculateScore(carpark, weights)
+    score: calculateScore(carpark, weight)
   }))
   scored.sort((a, b) => b.score - a.score)
   return scored.map((carpark, index) => ({ ...carpark, rank: index + 1 }))
-
 }
