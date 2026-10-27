@@ -29,7 +29,7 @@ onBeforeUnmount(() => window.removeEventListener('auth-changed', refreshUser))
           <RouterLink class="nav-link" to="/">Search</RouterLink>
           <RouterLink class="nav-link" to="/map">Map</RouterLink>
           <RouterLink class="nav-link" to="/compare">Compare</RouterLink>
-          <RouterLink class="nav-link" to="/favourites">Saved</RouterLink>
+          <RouterLink class="nav-link" to="/favourites">Favourites</RouterLink>
           <span v-if="user" class="navbar-text">{{ user.name }}</span>
           <button class="btn btn-outline-primary" type="button" @click="logout">Log out</button>
         </div>

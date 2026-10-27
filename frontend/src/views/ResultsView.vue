@@ -20,6 +20,9 @@ const selectedIds = ref([])
 const loading = ref(false)
 const error = ref('')
 const updatedAt = ref(null)
+const savingFavourite = ref(false)
+const favouriteSaved = ref(false)
+const favouriteMessage = ref('')
 let latestRequest = 0
 
 const contextQuery = computed(() => ({ ...route.query, destination: destination.value, vehicleType: vehicleType.value }))
@@ -38,6 +41,32 @@ function resetFilters() {
   maxDistance.value = '1000'
   availableOnly.value = false
   sortBy.value = 'walk'
+}
+
+async function saveDestination() {
+  const latitude = Number(route.query.latitude)
+  const longitude = Number(route.query.longitude)
+  if (!destination.value || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    favouriteMessage.value = 'This destination cannot be added to favourites.'
+    return
+  }
+
+  savingFavourite.value = true
+  favouriteMessage.value = ''
+  try {
+    await api.post('/favourites', {
+      type: 'destination',
+      label: destination.value,
+      latitude,
+      longitude,
+    })
+    favouriteSaved.value = true
+    favouriteMessage.value = 'Destination added to favourites.'
+  } catch (err) {
+    favouriteMessage.value = err.response?.data?.message || 'Unable to add this destination.'
+  } finally {
+    savingFavourite.value = false
+  }
 }
 
 async function loadCarparks() {
@@ -84,6 +113,8 @@ async function loadCarparks() {
 // Watch search context so navigating to a new destination reloads this same view.
 watch(() => [route.query.destination, route.query.latitude, route.query.longitude, route.query.vehicleType], () => {
   vehicleType.value = ['C', 'Y', 'H'].includes(route.query.vehicleType) ? route.query.vehicleType : 'C'
+  favouriteSaved.value = false
+  favouriteMessage.value = ''
   resetFilters()
   loadCarparks()
 }, { immediate: true })
@@ -98,7 +129,16 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
         <h1>Nearby carparks</h1>
         <p class="text-secondary mt-3 mb-0">Parking near <strong class="text-dark">{{ destination || 'your destination' }}</strong></p>
       </div>
-      <RouterLink class="btn btn-outline-success" :to="{ name: 'map', query: contextQuery }">Explore map ↗</RouterLink>
+      <div class="d-flex flex-wrap gap-2">
+        <button class="btn btn-outline-success" type="button" :disabled="savingFavourite || favouriteSaved" @click="saveDestination">
+          {{ savingFavourite ? 'Adding…' : favouriteSaved ? 'Added to favourites' : 'Add to favourites' }}
+        </button>
+        <RouterLink class="btn btn-outline-success" :to="{ name: 'map', query: contextQuery }">Explore map ↗</RouterLink>
+      </div>
+    </div>
+
+    <div v-if="favouriteMessage" class="alert py-2" :class="favouriteSaved ? 'alert-success' : 'alert-danger'" role="status">
+      {{ favouriteMessage }}
     </div>
 
     <div v-if="!isDemo" class="demo-notice mb-4">Source: LTA DataMall · Data is cached for up to 60 seconds. Refresh to retrieve the latest available response.</div>
