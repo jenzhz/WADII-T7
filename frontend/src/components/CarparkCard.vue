@@ -46,10 +46,10 @@ const availability = computed(() => {
 </template>
 
 <style scoped>
-.carpark-card { display: flex; flex-direction: column; padding: 1.5rem; border: 1px solid #d9e3df; border-radius: 1rem; background: white; transition: border-color .15s, box-shadow .15s; }
+.carpark-card { display: flex; flex-direction: column; padding: 1.7rem; border: 2px solid #174f40; border-radius: 1.4rem; background: white; transition: border-color .15s, box-shadow .15s, transform .15s; }
 .carpark-card:hover { border-color: #75a798; box-shadow: 0 8px 24px #173e3010; }
 .carpark-card.selected { border-color: #0f5c4d; box-shadow: 0 0 0 1px #0f5c4d; }
-.parking-icon { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: .75rem; background: #e6f4f0; color: #0f5c4d; font-weight: 800; font-size: 1.4rem; }
+.parking-icon { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: .75rem; background: #2cd790; color: #073f32; font-weight: 800; font-size: 1.4rem; }
 .availability { padding: .35rem .65rem; border-radius: 2rem; font-size: .72rem; font-weight: 700; }
 .available { background: #e6f4f0; color: #0f5c4d; }
 .limited { background: #fff1cf; color: #785100; }

@@ -43,6 +43,12 @@ function resetFilters() {
   sortBy.value = 'walk'
 }
 
+function resetSearchJourney() {
+  localStorage.removeItem('carparkcompare.search')
+  localStorage.removeItem('lastComparison')
+  window.dispatchEvent(new Event('search-changed'))
+}
+
 async function saveDestination() {
   const latitude = Number(route.query.latitude)
   const longitude = Number(route.query.longitude)
@@ -122,7 +128,10 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
 
 <template>
   <section class="results-page">
-    <RouterLink to="/" class="back-link">← Back to search</RouterLink>
+    <div class="results-inner">
+    <RouterLink to="/" class="back-link" @click="resetSearchJourney">
+      <span aria-hidden="true">←</span> Back to search
+    </RouterLink>
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mt-4 mb-4">
       <div>
         <p class="eyebrow">Less searching. Easier parking.</p>
@@ -130,10 +139,10 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
         <p class="text-secondary mt-3 mb-0">Parking near <strong class="text-dark">{{ destination || 'your destination' }}</strong></p>
       </div>
       <div class="d-flex flex-wrap gap-2">
-        <button class="btn btn-outline-success" type="button" :disabled="savingFavourite || favouriteSaved" @click="saveDestination">
+        <button class="btn favourite-button" type="button" :disabled="savingFavourite || favouriteSaved" @click="saveDestination">
           {{ savingFavourite ? 'Adding…' : favouriteSaved ? 'Added to favourites' : 'Add to favourites' }}
         </button>
-        <RouterLink class="btn btn-outline-success" :to="{ name: 'map', query: contextQuery }">Explore map ↗</RouterLink>
+        <RouterLink class="btn btn-success explore-button" :to="{ name: 'map', query: contextQuery }">Explore map ↗</RouterLink>
       </div>
     </div>
 
@@ -216,16 +225,23 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
         <button v-else class="btn btn-success text-nowrap" disabled>Compare (1)</button>
       </div>
     </aside>
+    </div>
   </section>
 </template>
 
 <style scoped>
-.results-page { max-width: 1140px; margin: auto; }
+.results-page { min-height: 100%; padding: 2.5rem 1.5rem 5rem; background-color: #f0fbf6; background-image: radial-gradient(#bfe9d7 1.1px, transparent 1.1px); background-size: 19px 19px; }
+.results-inner { width: min(100%, 76rem); margin: auto; }
 h1 { font-size: clamp(2rem, 5vw, 3.25rem); }
-.back-link { color: #52665d; text-decoration: none; font-size: .9rem; }
-.back-link:hover { text-decoration: underline; }
+.back-link { display: inline-flex; align-items: center; gap: .35rem; margin-bottom: .25rem; padding: .5rem .2rem; color: #087a58; font-weight: 750; text-decoration: none; }
+.back-link:hover { color: #055c42; text-decoration: underline; }
+.favourite-button { min-width: 10.5rem; border: 1.5px solid #174f40; color: #123d32; background: white; font-weight: 700; }
+.favourite-button:hover:not(:disabled) { border-color: #0a9e70; color: #06271f; background: #e7f8f0; }
+.explore-button { min-width: 9.5rem; border-color: #07875f; color: #06271f; background: #2cd790; font-weight: 700; }
+.explore-button:hover { border-color: #067651; color: #06271f; background: #25c985; }
 .demo-notice { padding: .85rem 1rem; background: #eef3f8; color: #40576a; border-radius: .65rem; font-size: .85rem; }
-.filter-panel { background: #f4f7f6; padding: 1.25rem; border: 1px solid #d9e3df; border-radius: .85rem; }
+.filter-panel { padding: 1.4rem 1.5rem; border: 2px solid #174f40; border-radius: 1.3rem; background: white; }
+.filter-panel .form-select { min-height: 3.2rem; border: 1.5px solid #174f40; border-radius: .8rem; }
 .form-label { font-size: .8rem; font-weight: 600; }
 .state-panel { text-align: center; padding: 3rem 1rem; border: 1px dashed #becdc6; border-radius: 1rem; }
 .compare-tray { position: sticky; bottom: 1rem; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem; border: 1px solid #adccbf; border-radius: 1rem; background: #f0faf5; box-shadow: 0 8px 30px #173e3015; }
