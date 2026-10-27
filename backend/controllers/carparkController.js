@@ -154,6 +154,8 @@ export async function getCarparkDetails(request, response, next) {
         availableLots: carpark.availableLots,
         lotType: carpark.lotType,
         agency: carpark.agency,
+        hasEvCharger: Boolean(carpark.hasEvCharger),
+        evAvailableLots: carpark.evAvailableLots ?? 0,
         fetchedAt: carpark.fetchedAt,
         source: carpark.source,
         coordinates: {

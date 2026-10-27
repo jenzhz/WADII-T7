@@ -35,12 +35,20 @@ const props = defineProps({
     type: String,
     default: 'C',
   },
+  hasEvCharger: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const carparkDetails = ref(null)
 const isLoading = ref(false)
 const errorMessage = ref('')
 const lastUpdated = ref('')
+
+const showEvLeaf = computed(() =>
+  Boolean(carparkDetails.value?.hasEvCharger ?? props.hasEvCharger)
+)
 
 const lotTypeLabel = computed(() => {
   const type = carparkDetails.value?.lotType || props.lotType
@@ -141,8 +149,21 @@ watch(
             </span>
             <span class="badge type-badge">{{ lotTypeLabel }}</span>
           </div>
-          <h1 class="h2 fw-bold mb-1">
-            {{ carparkDetails?.carparkName || carparkDetails?.name || carparkName }}
+          <h1 class="h2 fw-bold mb-1 d-flex align-items-center gap-2 flex-wrap">
+            <span>{{ carparkDetails?.carparkName || carparkDetails?.name || carparkName }}</span>
+            <span
+              v-if="showEvLeaf"
+              class="ev-leaf-badge"
+              title="EV charging point available"
+              aria-label="EV charging point available"
+            >
+              <svg class="ev-leaf-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66l.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8Z"
+                />
+              </svg>
+            </span>
           </h1>
           <p class="text-muted mb-0">
             <span v-if="carparkDetails?.area">Area: {{ carparkDetails.area }} &bull; </span>
@@ -317,6 +338,8 @@ watch(
 
 .details-header { padding: .5rem; }
 .details-header h1 { font-size: clamp(1.8rem, 4vw, 3rem); letter-spacing: -.035em; }
+.ev-leaf-badge { display: inline-flex; align-items: center; justify-content: center; width: 2.15rem; height: 2.15rem; border-radius: 50%; background: #dcfce7; color: #15803d; flex-shrink: 0; }
+.ev-leaf-icon { width: 1.35rem; height: 1.35rem; }
 .id-badge, .type-badge { color: #10243a; background: #edf2f5; }
 .agency-badge { border: 1px solid #20c980; color: #087a58; background: #eafbf4; }
 .refresh-button { min-height: 3rem; padding-inline: 1.25rem; border: 1.5px solid #174f40; border-radius: .8rem; color: #073f32; background: white; font-weight: 700; }
@@ -343,4 +366,3 @@ watch(
   .details-header .align-items-md-end { align-items: flex-start !important; }
 }
 </style>
-
