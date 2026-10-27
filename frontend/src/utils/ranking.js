@@ -36,10 +36,38 @@ export function calculateScore(carpark, weight) {
 
 // Will score and order carparks without mutating the original array.
 export function rankCarparks(carparks, weight) {
-  const  scored = carparks.map(carpark => ({
-    ...carpark,
-    score: calculateScore(carpark, weight)
-  }))
-  scored.sort((a, b) => b.score - a.score)
+  const availableLots = carparks
+    .map(carpark => carpark.availableLots)
+    .filter(value => value != null && Number.isFinite(Number(value)))
+    .map(Number)
+  const walkingMinutes = carparks
+    .map(getWalkingMinutes)
+    .filter(value => value != null && Number.isFinite(Number(value)))
+    .map(Number)
+  const maxLots = Math.max(0, ...availableLots)
+  const minWalk = walkingMinutes.length ? Math.min(...walkingMinutes) : 0
+  const maxWalk = walkingMinutes.length ? Math.max(...walkingMinutes) : 0
+
+  const scored = carparks.map(carpark => {
+    const lots = carpark.availableLots == null ? null : Number(carpark.availableLots)
+    const walk = getWalkingMinutes(carpark)
+    const lotsScore = lots == null || maxLots === 0 ? 0 : Math.max(0, lots) / maxLots
+    const walkScore = walk == null
+      ? 0
+      : maxWalk === minWalk ? 1 : 1 - ((walk - minWalk) / (maxWalk - minWalk))
+    return { ...carpark, score: lotsScore * weight.lots + walkScore * weight.walk }
+  })
+
+  const lotsValue = carpark => carpark.availableLots == null ? -1 : Number(carpark.availableLots)
+  const walkValue = carpark => getWalkingMinutes(carpark) ?? Number.POSITIVE_INFINITY
+  scored.sort((a, b) => {
+    if (weight.mode === 'lots') {
+      return lotsValue(b) - lotsValue(a) || walkValue(a) - walkValue(b) || a.name.localeCompare(b.name)
+    }
+    if (weight.mode === 'walk') {
+      return walkValue(a) - walkValue(b) || lotsValue(b) - lotsValue(a) || a.name.localeCompare(b.name)
+    }
+    return b.score - a.score || walkValue(a) - walkValue(b) || lotsValue(b) - lotsValue(a) || a.name.localeCompare(b.name)
+  })
   return scored.map((carpark, index) => ({ ...carpark, rank: index + 1 }))
 }

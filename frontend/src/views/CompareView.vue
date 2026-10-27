@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
+import api from '@/services/api'
 import { rankCarparks } from '../utils/ranking'
 import { normaliseCarparks, formatDistance } from '../utils/carparkResults'
 
@@ -11,9 +11,9 @@ const STORAGE_KEY = 'lastComparison'
 const route = useRoute()
 const preference = ref('lots')
 const weightOptions = {
-  lots: { lots: 0.7, walk: 0.3, label: 'More lots' },
-  balanced: { lots: 0.5, walk: 0.5, label: 'Balanced' },
-  walk: { lots: 0.3, walk: 0.7, label: 'Closer' }
+  lots: { lots: 0.7, walk: 0.3, mode: 'lots', label: 'More lots' },
+  balanced: { lots: 0.5, walk: 0.5, mode: 'balanced', label: 'Balanced' },
+  walk: { lots: 0.3, walk: 0.7, mode: 'walk', label: 'Closer' }
 }
 
 const selectedIds = computed(() => {
@@ -24,7 +24,6 @@ const selectedIds = computed(() => {
   return ids.split(',')
 })
 
-const url = 'http://localhost:3000/api/carparks/nearby'
 const selectedCarparks = ref([])
 const loading = ref(false)
 const message = ref('')
@@ -36,7 +35,7 @@ async function loadCarparks() {
   loading.value = true
   message.value = ''
   try {
-    const response = await axios.get(url, {
+    const response = await api.get('/carparks/nearby', {
       params: {
         latitude: route.query.latitude,
         longitude: route.query.longitude,

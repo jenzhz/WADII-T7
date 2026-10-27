@@ -13,5 +13,7 @@ const favouriteSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
+favouriteSchema.index({ user: 1, type: 1, latitude: 1, longitude: 1 }, { unique: true })
+
 export default mongoose.model('Favourite', favouriteSchema)
 
