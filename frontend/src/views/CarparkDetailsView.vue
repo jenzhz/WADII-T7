@@ -33,6 +33,7 @@ const route = useRoute()
       :dest-lng="route.query.destLng || route.query.longitude || 103.857"
       :destination-name="route.query.destinationName || route.query.destination || 'Suntec City / Marina Bay'"
       :lot-type="route.query.lotType || route.query.vehicleType || 'C'"
+      :has-ev-charger="route.query.hasEv === '1'"
     />
     </div>
   </section>
