@@ -1,15 +1,11 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
-import {
-  ensureMockAccounts,
-  getMockSession,
-  loginMockAccount,
-  logoutMockAccount,
-  registerMockAccount,
-} from '@/services/mockAuth'
+import { reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { loginAccount, registerAccount } from '@/services/auth'
 
+const route = useRoute()
+const router = useRouter()
 const activeForm = ref('login')
-const currentUser = ref(null)
 const isSubmitting = ref(false)
 const notice = reactive({ type: '', message: '' })
 
@@ -21,14 +17,18 @@ const registerForm = reactive({
   confirmPassword: '',
 })
 
-onMounted(async () => {
-  await ensureMockAccounts()
-  currentUser.value = getMockSession()
-})
-
 function showNotice(type, message) {
   notice.type = type
   notice.message = message
+}
+
+function errorMessage(error) {
+  return error.response?.data?.message || error.message || 'Unable to complete the request.'
+}
+
+function continueToApp() {
+  const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+  router.replace(redirect)
 }
 
 function switchForm(form) {
@@ -41,11 +41,11 @@ async function submitLogin() {
   showNotice('', '')
 
   try {
-    currentUser.value = await loginMockAccount(loginForm)
+    await loginAccount(loginForm)
     loginForm.password = ''
-    showNotice('success', `Welcome back, ${currentUser.value.name}.`)
+    continueToApp()
   } catch (error) {
-    showNotice('danger', error.message)
+    showNotice('danger', errorMessage(error))
   } finally {
     isSubmitting.value = false
   }
@@ -67,25 +67,13 @@ async function submitRegistration() {
   isSubmitting.value = true
 
   try {
-    await registerMockAccount(registerForm)
-    loginForm.email = registerForm.email
-    registerForm.name = ''
-    registerForm.email = ''
-    registerForm.password = ''
-    registerForm.confirmPassword = ''
-    activeForm.value = 'login'
-    showNotice('success', 'Mock account created. You can now log in.')
+    await registerAccount(registerForm)
+    continueToApp()
   } catch (error) {
-    showNotice('danger', error.message)
+    showNotice('danger', errorMessage(error))
   } finally {
     isSubmitting.value = false
   }
-}
-
-function logout() {
-  logoutMockAccount()
-  currentUser.value = null
-  showNotice('success', 'You have logged out of the local mock session.')
 }
 </script>
 
@@ -97,23 +85,12 @@ function logout() {
           <p class="text-uppercase text-primary fw-semibold small mb-2">Your account</p>
           <h1 class="h2 mb-3">Login or create an account</h1>
           <p class="text-secondary">
-            This page currently uses local mock accounts so the team can test the user flow before MongoDB authentication is connected.
+            Sign in to search, compare, and save Singapore carparks.
           </p>
-
-          <RouterLink to="/mock-accounts">View and manage local mock accounts</RouterLink>
         </div>
 
         <div class="col-lg-7">
-          <div v-if="currentUser" class="card shadow-sm">
-            <div class="card-body">
-              <h2 class="h4">Signed in locally</h2>
-              <p class="mb-1"><strong>Name:</strong> {{ currentUser.name }}</p>
-              <p><strong>Email:</strong> {{ currentUser.email }}</p>
-              <button class="btn btn-outline-danger" type="button" @click="logout">Log out</button>
-            </div>
-          </div>
-
-          <div v-else class="card shadow-sm">
+          <div class="card shadow-sm">
             <div class="card-body">
               <div class="nav nav-pills nav-fill mb-4" role="tablist" aria-label="Account options">
                 <button
@@ -226,14 +203,6 @@ function logout() {
             </div>
           </div>
 
-          <div
-            v-if="currentUser && notice.message"
-            class="alert mt-3"
-            :class="`alert-${notice.type}`"
-            role="status"
-          >
-            {{ notice.message }}
-          </div>
         </div>
       </div>
     </div>
