@@ -1,11 +1,13 @@
 import { Router } from 'express'
-import { getCurrentUser, loginUser, registerUser } from '../controllers/userController.js'
+import { getCurrentUser, loginUser, logoutUser, registerUser } from '../controllers/userController.js'
+import { requireAuth } from '../middleware/auth.js'
 
 const router = Router()
 
 router.post('/register', registerUser)
 router.post('/login', loginUser)
-router.get('/profile', getCurrentUser)
+router.post('/logout', requireAuth, logoutUser)
+router.get('/profile', requireAuth, getCurrentUser)
 
 export default router
 

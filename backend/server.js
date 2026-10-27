@@ -5,9 +5,9 @@ import { connectDatabase } from './config/db.js'
 const port = Number(process.env.PORT) || 3000
 
 async function startServer() {
-  // Public carpark searches do not require MongoDB. Auth/saved places still do.
-  if (process.env.MONGODB_URI) await connectDatabase(process.env.MONGODB_URI)
-  else console.warn('MongoDB not configured: only database-independent features are available.')
+  if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is not configured in backend/.env')
+  if (!process.env.SESSION_SECRET) throw new Error('SESSION_SECRET is not configured in backend/.env')
+  await connectDatabase(process.env.MONGODB_URI)
   app.listen(port, () => {
     console.log(`Backend listening on http://localhost:${port}`)
   })
