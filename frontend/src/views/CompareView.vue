@@ -65,7 +65,10 @@ onMounted(async ()=>{
 })
 
 const ranked = computed(() => rankCarparks(selectedCarparks.value, weightOptions[preference.value]))
-
+const  columnClass = computed(()=>{
+  const count = ranked.value.length
+  return 'col-md-' + Math.floor(12 / count)
+})
 // Most available lots among the selected carparks (null values are skipped)
 const bestLots = computed(() => {
   let best = null
@@ -115,10 +118,10 @@ function toStar(score) {
           <label class="btn btn-outline-success" :for="'pref-' + key">{{ value.label }}</label>
         </template>
       </div>
-
-      <!-- Side-by-side cards: 3 in a row on desktop, stacked on phones -->
+      
+      <!-- 2 cards: 6/12 each, 3 cards: 4/12 each; stacked on phones -->
       <div class="row g-3">
-        <div v-for="carpark in ranked" :key="carpark.id" class="col-12 col-md-4">
+        <div v-for="carpark in ranked" :key="carpark.id" class="col-12" :class="columnClass">
           <div class="card h-100 compare-card" :class="{ recommended: carpark.rank === 1 }">
             <div class="card-body d-flex flex-column">
               <div class="mb-2">
