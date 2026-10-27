@@ -23,6 +23,7 @@ app.get('/api/health', (_request, response) => {
 app.use('/api/users', userRoutes)
 app.use('/api/favourites', favouriteRoutes)
 app.use('/api/carparks', carparkRoutes)
+app.use('/api/carpark-details', carparkRoutes)
 app.use('/api/locations', locationRoutes)
 
 app.use(notFoundHandler)

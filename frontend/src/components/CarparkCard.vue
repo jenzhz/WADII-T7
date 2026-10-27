@@ -1,17 +1,64 @@
 <script setup>
-defineProps({
-  carpark: {
-    type: Object,
-    default: () => ({ name: 'Carpark name', availableLots: '—', walkingTime: '—' }),
-  },
+import { computed } from 'vue'
+import { formatDistance } from '@/utils/carparkResults'
+
+const props = defineProps({
+  carpark: { type: Object, required: true },
+  selected: { type: Boolean, default: false },
+  selectionDisabled: { type: Boolean, default: false },
+  contextQuery: { type: Object, default: () => ({}) },
+})
+defineEmits(['toggle-compare'])
+const availability = computed(() => {
+  const lots = props.carpark.availableLots
+  if (lots == null) return { label: 'Availability unknown', className: 'unknown' }
+  if (lots === 0) return { label: 'Full', className: 'full' }
+  if (lots <= 20) return { label: 'Limited lots', className: 'limited' }
+  return { label: 'Lots available', className: 'available' }
 })
 </script>
 
 <template>
-  <article class="card p-3">
-    <h2 class="h5">{{ carpark.name }}</h2>
-    <p>Available lots: {{ carpark.availableLots }}</p>
-    <p class="mb-0">Walking time: {{ carpark.walkingTime }} min</p>
+  <article class="carpark-card h-100" :class="{ selected }">
+    <div class="d-flex justify-content-between align-items-start gap-2 mb-4">
+      <span class="parking-icon" aria-hidden="true">P</span>
+      <span class="availability" :class="availability.className">{{ availability.label }}</span>
+    </div>
+    <h3 class="h5 fw-bold mb-1">{{ carpark.name }}</h3>
+    <p class="text-secondary small mb-4">{{ carpark.agency || 'Carpark' }} · {{ carpark.carparkId || carpark.id }} · {{ { C: 'Car', Y: 'Motorcycle', H: 'Heavy vehicle' }[carpark.lotType] || carpark.lotType }}</p>
+    <p class="small text-secondary" v-if="carpark.latitude != null && carpark.longitude != null">Coordinates: {{ carpark.latitude }}, {{ carpark.longitude }}</p>
+    <dl class="metrics">
+      <div><dt>Available lots</dt><dd>{{ carpark.availableLots ?? '—' }}</dd></div>
+      <div><dt>Est. walk</dt><dd>{{ carpark.walkingTime == null ? '—' : `${carpark.walkingTime} min` }}</dd></div>
+      <div><dt>Straight-line distance</dt><dd>{{ formatDistance(carpark.distance ?? null) }}</dd></div>
+    </dl>
+    <div class="mt-auto pt-3 border-top d-flex flex-wrap align-items-center justify-content-between gap-3">
+      <label class="d-flex align-items-center gap-2 small">
+        <input class="form-check-input mt-0" type="checkbox" :checked="selected"
+          :disabled="selectionDisabled && !selected" @change="$emit('toggle-compare', carpark.id)" />
+        Compare<span class="visually-hidden"> {{ carpark.name }}</span>
+      </label>
+      <RouterLink class="details-link" :to="{ name: 'carpark-details', params: { id: carpark.id }, query: contextQuery }">
+        View details <span aria-hidden="true">→</span>
+      </RouterLink>
+    </div>
   </article>
 </template>
 
+<style scoped>
+.carpark-card { display: flex; flex-direction: column; padding: 1.5rem; border: 1px solid #d9e3df; border-radius: 1rem; background: white; transition: border-color .15s, box-shadow .15s; }
+.carpark-card:hover { border-color: #75a798; box-shadow: 0 8px 24px #173e3010; }
+.carpark-card.selected { border-color: #0f5c4d; box-shadow: 0 0 0 1px #0f5c4d; }
+.parking-icon { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: .75rem; background: #e6f4f0; color: #0f5c4d; font-weight: 800; font-size: 1.4rem; }
+.availability { padding: .35rem .65rem; border-radius: 2rem; font-size: .72rem; font-weight: 700; }
+.available { background: #e6f4f0; color: #0f5c4d; }
+.limited { background: #fff1cf; color: #785100; }
+.full { background: #fce5e5; color: #9f3030; }
+.unknown { background: #edf0f3; color: #52606d; }
+.metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; margin-bottom: 1.5rem; }
+.metrics dt { color: #63716a; font-size: .72rem; font-weight: 400; margin-bottom: .4rem; }
+.metrics dd { font-size: 1.1rem; font-weight: 700; margin: 0; }
+.details-link { color: #0f5c4d; font-size: .85rem; font-weight: 700; text-decoration: none; }
+.details-link:hover { text-decoration: underline; }
+.form-check-input:checked { background-color: #0f5c4d; border-color: #0f5c4d; }
+</style>
