@@ -16,6 +16,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('carparkcompare.user')
+      localStorage.removeItem('carparkcompare.search')
+      localStorage.removeItem('lastComparison')
       if (window.location.pathname !== '/login') window.location.assign('/login')
     }
     return Promise.reject(error)

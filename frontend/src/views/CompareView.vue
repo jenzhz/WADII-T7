@@ -5,10 +5,9 @@ import api from '@/services/api'
 import { rankCarparks } from '../utils/ranking'
 import { normaliseCarparks, formatDistance } from '../utils/carparkResults'
 
-const router = useRouter()
-const STORAGE_KEY = 'lastComparison'
-
 const route = useRoute()
+const router = useRouter()
+const COMPARISON_KEY = 'lastComparison'
 const preference = ref('lots')
 const weightOptions = {
   lots: { lots: 0.7, walk: 0.3, mode: 'lots', label: 'More lots' },
@@ -51,16 +50,20 @@ async function loadCarparks() {
     loading.value = false
   }
 }
-onMounted(async ()=>{
-  if (route.query.ids){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(route.query))
+onMounted(async () => {
+  if (route.query.ids) {
+    localStorage.setItem(COMPARISON_KEY, JSON.stringify(route.query))
   } else {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved){
-      await router.push({name:'compare', query:JSON.parse(saved)})
+    try {
+      const savedQuery = JSON.parse(localStorage.getItem(COMPARISON_KEY))
+      if (savedQuery?.ids) {
+        await router.replace({ name: 'compare', query: savedQuery })
+      }
+    } catch {
+      localStorage.removeItem(COMPARISON_KEY)
     }
   }
-  loadCarparks()
+  await loadCarparks()
 })
 
 const ranked = computed(() => rankCarparks(selectedCarparks.value, weightOptions[preference.value]))
@@ -94,7 +97,8 @@ function toStar(score) {
 </script>
 
 <template>
-  <section>
+  <section class="compare-page">
+    <div class="compare-inner">
     <h1 class="h2 mb-3">Compare Carparks</h1>
 
     <!-- Loading / error / not enough carparks -->
@@ -154,10 +158,19 @@ function toStar(score) {
         Highlighted values are the best in each category. Distance is the straight-line distance from your destination.
       </p>
     </template>
+    </div>
   </section>
 </template>
 
 <style scoped>
+.compare-page {
+  min-height: 100%;
+  padding: 2.5rem 1.5rem 5rem;
+  background-color: #f0fbf6;
+  background-image: radial-gradient(#bfe9d7 1.1px, transparent 1.1px);
+  background-size: 19px 19px;
+}
+.compare-inner { width: min(100%, 76rem); margin: auto; }
 .compare-card {
   border-radius: 1rem;
   border: 1px solid #d9e3df;

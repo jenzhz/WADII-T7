@@ -1,6 +1,7 @@
 import api from './api'
 
 const USER_KEY = 'carparkcompare.user'
+const SEARCH_KEY = 'carparkcompare.search'
 let sessionVerified = false
 
 function saveSession({ user }) {
@@ -48,5 +49,7 @@ export async function logoutAccount() {
 export function clearSession() {
   sessionVerified = false
   localStorage.removeItem(USER_KEY)
+  localStorage.removeItem(SEARCH_KEY)
+  localStorage.removeItem('lastComparison')
   window.dispatchEvent(new Event('auth-changed'))
 }

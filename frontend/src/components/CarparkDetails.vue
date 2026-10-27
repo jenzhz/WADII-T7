@@ -55,15 +55,15 @@ const lotTypeLabel = computed(() => {
 const availabilityBadge = computed(() => {
   const lots = carparkDetails.value?.availableLots
   if (lots == null) {
-    return { text: 'Availability Unknown', className: 'bg-secondary' }
+    return { text: 'Availability Unknown', className: 'availability-unknown' }
   }
   if (Number(lots) === 0) {
-    return { text: 'Full', className: 'bg-danger' }
+    return { text: 'Full', className: 'availability-full' }
   }
   if (Number(lots) <= 20) {
-    return { text: 'Limited Lots', className: 'bg-warning text-dark' }
+    return { text: 'Limited Lots', className: 'availability-limited' }
   }
-  return { text: 'Lots Available', className: 'bg-success' }
+  return { text: 'Lots Available', className: 'availability-open' }
 })
 
 const formattedDistance = computed(() => {
@@ -129,17 +129,17 @@ watch(
 <template>
   <div class="carpark-details-component">
     <!-- Carpark Header Card -->
-    <div class="card shadow-sm border-0 mb-4">
+    <div class="card details-header mb-4">
       <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
           <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-            <span class="badge bg-secondary">
+            <span class="badge id-badge">
               ID: {{ carparkDetails?.carparkId || carparkId }}
             </span>
-            <span v-if="carparkDetails?.agency" class="badge bg-info text-dark">
+            <span v-if="carparkDetails?.agency" class="badge agency-badge">
               {{ carparkDetails.agency }}
             </span>
-            <span class="badge bg-light text-dark border">{{ lotTypeLabel }}</span>
+            <span class="badge type-badge">{{ lotTypeLabel }}</span>
           </div>
           <h1 class="h2 fw-bold mb-1">
             {{ carparkDetails?.carparkName || carparkDetails?.name || carparkName }}
@@ -154,7 +154,7 @@ watch(
         <div class="d-flex flex-column align-items-md-end gap-2">
           <button
             type="button"
-            class="btn btn-outline-success btn-sm"
+            class="btn refresh-button"
             :disabled="isLoading"
             @click="fetchCarparkDetails"
           >
@@ -202,18 +202,18 @@ watch(
     <div v-if="carparkDetails" class="row g-4">
       <!-- Real-Time Available Lots -->
       <div class="col-md-4">
-        <div class="card h-100 shadow-sm border-0">
+        <div class="card metric-card h-100">
           <div class="card-body p-4 text-center d-flex flex-column justify-content-between">
             <div>
               <p class="text-uppercase text-muted small fw-semibold mb-2">
                 Real-Time Available Lots
               </p>
-              <div class="display-4 fw-bold text-success my-2">
+              <div class="metric-value lots-value my-2">
                 {{ carparkDetails.availableLots ?? '—' }}
               </div>
             </div>
             <div class="mt-2">
-              <span class="badge rounded-pill px-3 py-2" :class="availabilityBadge.className">
+              <span class="badge availability-pill rounded-pill px-3 py-2" :class="availabilityBadge.className">
                 {{ availabilityBadge.text }}
               </span>
             </div>
@@ -223,11 +223,11 @@ watch(
 
       <!-- Walking Distance -->
       <div class="col-md-4">
-        <div class="card h-100 shadow-sm border-0">
+        <div class="card metric-card h-100">
           <div class="card-body p-4 text-center d-flex flex-column justify-content-between">
             <div>
               <p class="text-uppercase text-muted small fw-semibold mb-2">Walking Distance</p>
-              <div class="display-5 fw-bold text-primary my-2">
+              <div class="metric-value my-2">
                 {{ formattedDistance }}
               </div>
             </div>
@@ -238,11 +238,11 @@ watch(
 
       <!-- Estimated Walk Time -->
       <div class="col-md-4">
-        <div class="card h-100 shadow-sm border-0">
+        <div class="card metric-card h-100">
           <div class="card-body p-4 text-center d-flex flex-column justify-content-between">
             <div>
               <p class="text-uppercase text-muted small fw-semibold mb-2">Estimated Walk Time</p>
-              <div class="display-4 fw-bold text-dark my-2">
+              <div class="metric-value my-2">
                 {{ carparkDetails.walkingTime ?? '—' }}
                 <span class="fs-4 fw-normal text-muted">mins</span>
               </div>
@@ -256,33 +256,25 @@ watch(
     </div>
 
     <!-- Route Summary & Turn-by-Turn Instructions -->
-    <div v-if="carparkDetails" class="card shadow-sm border-0 mt-4">
-      <div class="card-header bg-white py-3">
+    <div v-if="carparkDetails" class="card route-card mt-4">
+      <div class="card-header bg-white py-3 border-0">
         <h2 class="h5 mb-0 fw-semibold">Walking Route Summary</h2>
       </div>
       <div class="card-body p-4">
         <div class="row g-3 mb-3">
           <div class="col-sm-6">
-            <div class="p-3 bg-light rounded">
+            <div class="route-endpoint p-3 rounded">
               <div class="small text-muted text-uppercase fw-semibold">Origin (Carpark)</div>
               <div class="fw-bold">
                 {{ carparkDetails.carparkName || carparkDetails.name || carparkName }}
               </div>
-              <div class="small text-secondary">
-                Lat: {{ carparkDetails.coordinates?.latitude ?? originLat ?? '—' }},
-                Lng: {{ carparkDetails.coordinates?.longitude ?? originLng ?? '—' }}
-              </div>
             </div>
           </div>
           <div class="col-sm-6">
-            <div class="p-3 bg-light rounded">
+            <div class="route-endpoint p-3 rounded">
               <div class="small text-muted text-uppercase fw-semibold">Destination</div>
               <div class="fw-bold">
                 {{ carparkDetails.destination?.name || destinationName }}
-              </div>
-              <div class="small text-secondary">
-                Lat: {{ carparkDetails.destination?.latitude ?? destLat }},
-                Lng: {{ carparkDetails.destination?.longitude ?? destLng }}
               </div>
             </div>
           </div>
@@ -297,12 +289,12 @@ watch(
             <li
               v-for="(step, index) in carparkDetails.routeInstructions"
               :key="index"
-              class="list-group-item d-flex justify-content-between align-items-start"
+              class="direction-step list-group-item d-flex justify-content-between align-items-start"
             >
               <div class="ms-2 me-auto">
                 {{ Array.isArray(step) ? step[9] || step[0] : step }}
               </div>
-              <span v-if="Array.isArray(step) && step[2]" class="badge bg-secondary rounded-pill">
+              <span v-if="Array.isArray(step) && step[2]" class="badge direction-distance rounded-pill">
                 {{ step[2] }}m
               </span>
             </li>
@@ -312,4 +304,43 @@ watch(
     </div>
   </div>
 </template>
+
+<style scoped>
+.details-header,
+.metric-card,
+.route-card {
+  border: 2px solid #174f40 !important;
+  border-radius: 1.35rem;
+  background: white;
+  box-shadow: none !important;
+}
+
+.details-header { padding: .5rem; }
+.details-header h1 { font-size: clamp(1.8rem, 4vw, 3rem); letter-spacing: -.035em; }
+.id-badge, .type-badge { color: #10243a; background: #edf2f5; }
+.agency-badge { border: 1px solid #20c980; color: #087a58; background: #eafbf4; }
+.refresh-button { min-height: 3rem; padding-inline: 1.25rem; border: 1.5px solid #174f40; border-radius: .8rem; color: #073f32; background: white; font-weight: 700; }
+.refresh-button:hover { border-color: #0a9e70; background: #eafbf4; }
+
+.metric-card { min-height: 12rem; padding: .25rem; }
+.metric-value { color: #10243a; font-size: clamp(2.6rem, 6vw, 4.25rem); font-weight: 800; line-height: 1; letter-spacing: -.05em; }
+.lots-value { color: #087a58; }
+.availability-pill { border: 1px solid transparent; }
+.availability-open { border-color: #20c980; color: #087a58; background: #eafbf4; }
+.availability-limited { border-color: #e1ac3a; color: #795300; background: #fff5d9; }
+.availability-full { border-color: #d65a5a; color: #9d2929; background: #fdeaea; }
+.availability-unknown { border-color: #81908b; color: #52606d; background: #edf2f0; }
+
+.route-card { overflow: hidden; }
+.route-card .card-header { padding: 1.5rem 1.75rem .5rem; }
+.route-card .card-body { padding: 1rem 1.75rem 1.75rem !important; }
+.route-endpoint { min-height: 5rem; background: #edf8f3; }
+.direction-step { padding: .95rem 0; border-width: 0 0 1px; border-color: #cfe4dc; background: transparent; }
+.direction-distance { color: #087a58; background: #dff7ec; }
+
+@media (max-width: 767px) {
+  .details-header .card-body { align-items: flex-start !important; }
+  .details-header .align-items-md-end { align-items: flex-start !important; }
+}
+</style>
 
