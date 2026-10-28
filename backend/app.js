@@ -8,6 +8,7 @@ import morgan from 'morgan'
 import carparkRoutes from './routes/carparkRoutes.js'
 import favouriteRoutes from './routes/favouriteRoutes.js'
 import locationRoutes from './routes/locationRoutes.js'
+import reviewRoutes from './routes/reviewRoutes.js'
 import userRoutes from './routes/userRoutes.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
 import { requireAuth } from './middleware/auth.js'
@@ -45,10 +46,12 @@ app.get('/api/health', (_request, response) => {
 
 // REST routes return JSON so they can be called by Vue and tested in Postman.
 app.use('/api/users', userRoutes)
+app.use('/api/reviews', reviewRoutes)
 app.use('/api/favourites', requireAuth, favouriteRoutes)
-app.use('/api/carparks', requireAuth, carparkRoutes)
-app.use('/api/carpark-details', requireAuth, carparkRoutes)
-app.use('/api/locations', requireAuth, locationRoutes)
+// Read-only discovery endpoints are public; Vue still protects operational parking pages.
+app.use('/api/carparks', carparkRoutes)
+app.use('/api/carpark-details', carparkRoutes)
+app.use('/api/locations', locationRoutes)
 
 app.use(notFoundHandler)
 app.use(errorHandler)

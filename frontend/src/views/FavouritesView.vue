@@ -6,15 +6,16 @@ import { formatDistance, normaliseCarparks } from '@/utils/carparkResults'
 import { rankCarparks } from '@/utils/ranking'
 
 const weightOptions = {
-  lots: { lots: 0.7, walk: 0.3, mode: 'lots', label: 'More lots' },
-  balanced: { lots: 0.5, walk: 0.5, mode: 'balanced', label: 'Balanced' },
   walk: { lots: 0.3, walk: 0.7, mode: 'walk', label: 'Closer' },
+  lots: { lots: 0.7, walk: 0.3, mode: 'lots', label: 'Available Lots' },
 }
 
 const favourites = ref([])
+const carparkFavourites = ref([])
+const liveCarparkData = ref(new Map())
 const activeFavourite = ref(null)
 const carparks = ref([])
-const preference = ref('balanced')
+const preference = ref('walk')
 const vehicleType = ref('C')
 const loadingFavourites = ref(true)
 const loadingCarparks = ref(false)
@@ -38,6 +39,15 @@ async function loadFavourites() {
   try {
     const { data } = await api.get('/favourites')
     favourites.value = data.favourites.filter(favourite => favourite.type === 'destination')
+    carparkFavourites.value = data.favourites.filter(favourite => favourite.type === 'carpark')
+    if (carparkFavourites.value.length) {
+      try {
+        const { data: liveData } = await api.get('/carparks')
+        liveCarparkData.value = new Map((liveData.carparks || []).map(carpark => [carpark.id, carpark]))
+      } catch {
+        liveCarparkData.value = new Map()
+      }
+    }
   } catch (error) {
     favouritesError.value = error.response?.data?.message || 'Unable to load favourites.'
   } finally {
@@ -56,7 +66,7 @@ async function loadCarparks() {
         latitude: activeFavourite.value.latitude,
         longitude: activeFavourite.value.longitude,
         vehicleType: vehicleType.value,
-        radius: 5000,
+        radius: 1000,
       },
     })
     carparks.value = normaliseCarparks(data.carparks)
@@ -69,7 +79,7 @@ async function loadCarparks() {
 
 async function selectFavourite(favourite) {
   activeFavourite.value = favourite
-  preference.value = 'balanced'
+  preference.value = 'walk'
   await loadCarparks()
 }
 
@@ -88,6 +98,29 @@ async function removeFavourite(favourite) {
   }
 }
 
+async function removeCarparkFavourite(favourite) {
+  favouritesError.value = ''
+  try {
+    await api.delete(`/favourites/${favourite.id}`)
+    carparkFavourites.value = carparkFavourites.value.filter(item => item.id !== favourite.id)
+  } catch (error) {
+    favouritesError.value = error.response?.data?.message || 'Unable to remove favourite carpark.'
+  }
+}
+
+function favouriteDetailsLink(favourite) {
+  const live = liveCarparkData.value.get(favourite.carparkId)
+  return {
+    name: 'carpark-details',
+    params: { id: favourite.carparkId },
+    query: {
+      name: favourite.label,
+      lotType: favourite.carparkId?.split(':').at(-1) || 'C',
+      ...(live?.hasEvCharger ? { hasEv: '1' } : {}),
+    },
+  }
+}
+
 onMounted(loadFavourites)
 </script>
 
@@ -96,15 +129,38 @@ onMounted(loadFavourites)
     <div class="favourites-inner">
     <div class="mb-4">
       <p class="text-uppercase text-primary fw-semibold small mb-2">Your places</p>
-      <h1>Favourite destinations</h1>
-      <p class="text-secondary mb-0">Choose a saved destination to see its best live parking options.</p>
+      <h1>Your favourites</h1>
+      <p class="text-secondary mb-0">Return to saved carparks or choose a destination to see its best live parking options.</p>
     </div>
 
     <div v-if="favouritesError" class="alert alert-danger" role="alert">{{ favouritesError }}</div>
+    <section v-if="!loadingFavourites && carparkFavourites.length" class="saved-carparks mb-4">
+      <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
+        <div><p class="text-uppercase text-primary fw-semibold small mb-1">Saved parking</p><h2 class="h4 mb-0">Favourite carparks</h2></div>
+        <span class="small text-secondary">{{ carparkFavourites.length }} saved</span>
+      </div>
+      <div class="saved-carpark-grid">
+        <article v-for="favourite in carparkFavourites" :key="favourite.id" class="saved-carpark-card">
+          <span class="saved-parking-icon" aria-hidden="true">P</span>
+          <div>
+            <h3>{{ favourite.label }}</h3>
+            <p>{{ favourite.carparkId }}</p>
+            <span v-if="liveCarparkData.get(favourite.carparkId)?.hasEvCharger" class="ev-badge">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66l.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8Z" /></svg>
+              EV Charging
+            </span>
+          </div>
+          <RouterLink :to="favouriteDetailsLink(favourite)">View details →</RouterLink>
+          <button type="button" title="Remove from favourites" :aria-label="`Remove ${favourite.label} from favourites`" @click="removeCarparkFavourite(favourite)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.5-9C.9 8.4 2.8 5 6.4 5c2.1 0 3.7 1.2 4.6 2.4C11.9 6.2 13.5 5 15.6 5c3.6 0 5.5 3.4 3.9 7-2 4.4-7.5 9-7.5 9Z" /></svg>
+          </button>
+        </article>
+      </div>
+    </section>
     <div v-if="loadingFavourites" class="state-panel"><LoadingSpinner /><p class="mt-3 mb-0">Loading favourites…</p></div>
-    <div v-else-if="favourites.length === 0" class="state-panel">
-      <h2 class="h5">No favourite destinations yet</h2>
-      <p class="text-secondary">Search for a destination and add it to favourites from the results page.</p>
+    <div v-else-if="favourites.length === 0 && carparkFavourites.length === 0" class="state-panel">
+      <h2 class="h5">No favourites yet</h2>
+      <p class="text-secondary">Save a destination or tap the heart on a carpark card.</p>
       <RouterLink class="btn btn-success" to="/">Find a destination</RouterLink>
     </div>
 
@@ -128,7 +184,7 @@ onMounted(loadFavourites)
           <span class="empty-parking-icon" aria-hidden="true">P</span>
           <h2>Select a favourite destination</h2>
           <p>Choose one of your saved places to see its top three live carpark options.</p>
-          <span class="selection-hint" aria-hidden="true">← Select a destination</span>
+          <RouterLink class="selection-hint" to="/">Select a destination →</RouterLink>
         </div>
 
         <template v-else>
@@ -168,6 +224,10 @@ onMounted(loadFavourites)
                   {{ carpark.rank === 1 ? 'Recommended' : `#${carpark.rank}` }}
                 </span>
                 <h3 class="h6 fw-bold">{{ carpark.name }}</h3>
+                <span v-if="carpark.hasEvCharger" class="ev-badge mb-2">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66l.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8Z" /></svg>
+                  EV Charging
+                </span>
                 <dl class="small mb-3">
                   <div><dt>Available lots</dt><dd>{{ carpark.availableLots ?? '—' }}</dd></div>
                   <div><dt>Distance</dt><dd>{{ formatDistance(carpark.distance) }}</dd></div>
@@ -193,11 +253,23 @@ onMounted(loadFavourites)
 .destination-select { flex: 1; display: grid; gap: .2rem; padding: 1rem; border: 0; background: transparent; color: inherit; }
 .destination-select span { color: #63716a; font-size: .8rem; }
 .destination-card .text-danger { padding-right: 1rem; color: #b62d24 !important; font-weight: 650; }
+.saved-carparks { padding: 1.35rem; border: 2px solid #174f40; border-radius: 1.35rem; background: white; }
+.saved-carpark-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; }
+.saved-carpark-card { position: relative; display: grid; grid-template-columns: auto 1fr; gap: .75rem; padding: 1rem 3rem 1rem 1rem; border: 1.5px solid #b8cec5; border-radius: 1rem; background: #f7fcf9; }
+.saved-parking-icon { display: grid; width: 2.4rem; height: 2.4rem; place-items: center; border-radius: .65rem; color: #073f32; background: #2cd790; font-weight: 800; }
+.saved-carpark-card h3 { margin: 0; font-size: .95rem; }
+.saved-carpark-card p { margin: .15rem 0 0; color: #63716a; font-size: .75rem; }
+.saved-carpark-card a { grid-column: 1 / -1; color: #087a58; font-size: .82rem; font-weight: 750; text-decoration: none; }
+.saved-carpark-card button { position: absolute; top: .8rem; right: .8rem; display: grid; width: 2rem; height: 2rem; padding: 0; place-items: center; border: 1px solid #df6a84; border-radius: 50%; color: #c92f54; background: #fff0f4; }
+.saved-carpark-card button svg { width: 1rem; fill: currentColor; stroke: currentColor; }
+.ev-badge { display: inline-flex; width: fit-content; align-items: center; gap: .3rem; margin-top: .45rem; padding: .25rem .55rem; border-radius: 2rem; color: #15803d; background: #dcfce7; font-size: .7rem; font-weight: 750; }
+.ev-badge svg { width: 1rem; height: 1rem; }
 .selection-empty-state { display: grid; min-height: 22rem; padding: 3rem 2rem; place-items: center; align-content: center; border: 2px dashed #9ebfb3; border-radius: 1.4rem; color: #52665d; background: rgba(255, 255, 255, .7); text-align: center; }
 .selection-empty-state h2 { margin: 1rem 0 .5rem; color: #10243a; font-size: 1.5rem; }
 .selection-empty-state p { max-width: 28rem; margin: 0; }
 .empty-parking-icon { display: grid; width: 4rem; height: 4rem; place-items: center; border-radius: 1.1rem; color: #073f32; background: #2cd790; box-shadow: 0 8px 20px #07875f22; font-size: 2rem; font-weight: 800; }
-.selection-hint { margin-top: 1.25rem; color: #087a58; font-size: .85rem; font-weight: 750; }
+.selection-hint { margin-top: 1.25rem; padding: .65rem 1rem; border: 1.5px solid #087a58; border-radius: .7rem; color: #087a58; background: white; font-size: .85rem; font-weight: 750; text-decoration: none; }
+.selection-hint:hover { color: #06271f; background: #2cd790; }
 .btn-group { padding: .25rem; border: 1.5px solid #174f40; border-radius: .9rem; background: white; overflow: hidden; }
 .btn-group .btn { border: 0; border-radius: .65rem !important; color: #087a58; font-weight: 700; }
 .btn-check:checked + .btn { color: #06271f; background: #2cd790; }
@@ -213,7 +285,8 @@ onMounted(loadFavourites)
 .carpark-card a:hover { text-decoration: underline; }
 
 @media (max-width: 991px) {
-  .selection-hint { display: none; }
+  .saved-carpark-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+@media (max-width: 575px) { .saved-carpark-grid { grid-template-columns: 1fr; } }
 </style>
 

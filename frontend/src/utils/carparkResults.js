@@ -24,11 +24,16 @@ export function normaliseCarparks(rows) {
   })
 }
 
-export function filterAndSortCarparks(carparks, { vehicleType, maxDistance, availableOnly, sortBy }) {
+export function filterAndSortCarparks(carparks, { vehicleType, maxDistance, availableOnly, evOnly, sortBy }) {
+  // Availability ranking should never recommend a carpark over 1 km away.
+  const effectiveMaxDistance = sortBy === 'lots'
+    ? Math.min(Number(maxDistance) || 1000, 1000)
+    : Number(maxDistance) || null
   const filtered = carparks.filter(carpark =>
     carpark.lotType === vehicleType &&
-    (!maxDistance || (carpark.distance !== null && carpark.distance <= Number(maxDistance))) &&
-    (!availableOnly || (carpark.availableLots !== null && carpark.availableLots > 0)),
+    (!effectiveMaxDistance || (carpark.distance !== null && carpark.distance <= effectiveMaxDistance)) &&
+    (!availableOnly || (carpark.availableLots !== null && carpark.availableLots > 0)) &&
+    (!evOnly || carpark.hasEvCharger === true),
   )
   // Unknown values appear last. Stable name ordering breaks ties.
   return filtered.sort((a, b) => {

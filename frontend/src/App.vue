@@ -5,7 +5,7 @@ import Navbar from '@/components/Navbar.vue'
 
 const route = useRoute()
 const showAppChrome = computed(() => route.name !== 'login')
-const fullWidthContent = computed(() => ['login', 'home', 'results', 'carpark-details', 'favourites', 'compare'].includes(route.name))
+const fullWidthContent = computed(() => ['login', 'home', 'results', 'carpark-details', 'favourites', 'compare', 'community'].includes(route.name))
 </script>
 
 <template>

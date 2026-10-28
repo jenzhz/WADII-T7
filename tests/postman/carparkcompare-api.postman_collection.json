@@ -5,7 +5,12 @@
     "description": "Starter requests for the Express REST API. Feature requests intentionally return 501 until implemented.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
-  "variable": [{ "key": "baseUrl", "value": "http://localhost:3000", "type": "string" }],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "carparkId", "value": "HDB:SK30:C", "type": "string" },
+    { "key": "reviewId", "value": "replace-with-review-id", "type": "string" },
+    { "key": "replyId", "value": "replace-with-reply-id", "type": "string" }
+  ],
   "item": [
     {
       "name": "Health",
@@ -102,6 +107,95 @@
     {
       "name": "Favourites - Delete placeholder",
       "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/api/favourites/replace-with-favourite-id" }
+    },
+    {
+      "name": "Community Reviews",
+      "description": "Login first so Postman's cookie jar retains the session for write operations. For forbidden ownership checks, log in as a different account before sending the request.",
+      "item": [
+        {
+          "name": "Get reviews for carpark",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/reviews/carpark/{{carparkId}}" }
+        },
+        {
+          "name": "Create review",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"carparkId\": \"{{carparkId}}\",\n  \"overallRating\": 5,\n  \"lotSpaciousness\": 5,\n  \"entranceExitAccessibility\": 4,\n  \"signage\": 4,\n  \"evExperience\": 4,\n  \"comment\": \"Spacious lots and clear signs.\"\n}" },
+            "url": "{{baseUrl}}/api/reviews"
+          }
+        },
+        {
+          "name": "Duplicate review rejection (send after Create)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"carparkId\": \"{{carparkId}}\",\n  \"overallRating\": 4,\n  \"comment\": \"A second review should be rejected.\"\n}" },
+            "url": "{{baseUrl}}/api/reviews"
+          }
+        },
+        {
+          "name": "Invalid rating rejection",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"carparkId\": \"another-carpark\",\n  \"overallRating\": 6,\n  \"comment\": \"Invalid rating test.\"\n}" },
+            "url": "{{baseUrl}}/api/reviews"
+          }
+        },
+        {
+          "name": "Edit own review",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"overallRating\": 4,\n  \"lotSpaciousness\": 3,\n  \"comment\": \"Updated after another visit.\"\n}" },
+            "url": "{{baseUrl}}/api/reviews/{{reviewId}}"
+          }
+        },
+        {
+          "name": "Unauthorised edit (log in as another user first)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"overallRating\": 1,\n  \"comment\": \"This edit must be forbidden.\"\n}" },
+            "url": "{{baseUrl}}/api/reviews/{{reviewId}}"
+          }
+        },
+        {
+          "name": "Create reply",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"comment\": \"Thanks for the useful tip.\"\n}" },
+            "url": "{{baseUrl}}/api/reviews/{{reviewId}}/replies"
+          }
+        },
+        {
+          "name": "Edit own reply",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"comment\": \"Thanks — this was very useful.\"\n}" },
+            "url": "{{baseUrl}}/api/reviews/{{reviewId}}/replies/{{replyId}}"
+          }
+        },
+        {
+          "name": "Delete own reply",
+          "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/api/reviews/{{reviewId}}/replies/{{replyId}}" }
+        },
+        {
+          "name": "Community summaries and recent activity",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/api/reviews/community" }
+        },
+        {
+          "name": "Delete own review",
+          "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/api/reviews/{{reviewId}}" }
+        },
+        {
+          "name": "Unauthorised delete (log in as another user first)",
+          "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/api/reviews/{{reviewId}}" }
+        }
+      ]
     }
   ]
 }

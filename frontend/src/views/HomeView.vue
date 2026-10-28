@@ -147,6 +147,11 @@ function goToResults() {
         <article><h2>Live availability</h2><p>Real-time lots from LTA DataMall.</p></article>
         <article><h2>Walking routes</h2><p>Distance and time from carpark to destination.</p></article>
         <article><h2>Side-by-side compare</h2><p>Pick carparks and weigh them up.</p></article>
+        <RouterLink class="community-feature" to="/community">
+          <h2>Community reviews</h2>
+          <p>See ratings and experiences shared by other drivers.</p>
+          <span>Explore Community →</span>
+        </RouterLink>
       </div>
     </div>
   </section>
@@ -202,10 +207,13 @@ function goToResults() {
 .search-button:hover { background: #25c985; }
 .clear-button { padding-inline: .8rem; border: 1px solid #82958e; color: #40534c; background: white; }
 
-.feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-top: 2rem; }
-.feature-grid article { min-height: 7.5rem; padding: 1.5rem; border: 2px solid #174f40; border-radius: 1.3rem; background: white; }
+.feature-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.25rem; margin-top: 2rem; }
+.feature-grid > * { min-height: 8.5rem; padding: 1.5rem; border: 2px solid #174f40; border-radius: 1.3rem; background: white; }
 .feature-grid h2 { margin-bottom: .35rem; font-size: 1.05rem; font-weight: 750; }
 .feature-grid p { margin: 0; color: #52606d; line-height: 1.35; }
+.community-feature { display: flex; flex-direction: column; color: inherit; text-decoration: none; transition: transform .15s, border-color .15s, box-shadow .15s; }
+.community-feature span { margin-top: auto; padding-top: .75rem; color: #087a58; font-size: .82rem; font-weight: 800; }
+.community-feature:hover { border-color: #0a9e70; box-shadow: 0 8px 20px #073f3212; transform: translateY(-2px); }
 
 @media (max-width: 850px) {
   .hero-inner { min-height: 20rem; }
@@ -213,7 +221,7 @@ function goToResults() {
   .route-graphic { inset-inline-start: 62%; opacity: .7; }
   .search-card { grid-template-columns: 1fr 1fr; }
   .destination-field { grid-column: 1 / -1; }
-  .feature-grid { grid-template-columns: 1fr; }
+  .feature-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
 @media (max-width: 575px) {
@@ -223,6 +231,7 @@ function goToResults() {
   .search-card { grid-template-columns: 1fr; padding: 1.15rem; }
   .destination-field { grid-column: auto; }
   .search-actions { margin-top: 0; }
+  .feature-grid { grid-template-columns: 1fr; }
 }
 </style>
 
