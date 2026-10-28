@@ -112,6 +112,14 @@ watch(() => route.fullPath, refreshSearchTarget)
 </template>
 
 <style scoped>
+/* Keep the navbar at the top of the screen while scrolling.
+   z-index is above Leaflet map controls (1000) so the map never covers it. */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 1100;
+}
+
 .brand-logo {
   display: inline-flex;
   align-items: center;

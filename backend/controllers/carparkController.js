@@ -52,11 +52,12 @@ export async function getNearbyCarparks(request, response, next) {
     const latitude = numericQuery(request.query.latitude, 'latitude', -90, 90)
     const longitude = numericQuery(request.query.longitude, 'longitude', -180, 180)
     const radius = numericQuery(request.query.radius, 'radius (metres)', 100, 5000, 1000)
+    const duration = numericQuery(request.query.duration, 'duration (minutes)', 30, 1440, 120)
     const vehicleType = request.query.vehicleType || 'C'
     if (!['C', 'Y', 'H'].includes(vehicleType)) {
       throw Object.assign(new Error('vehicleType must be C, Y or H.'), { status: 400 })
     }
-    response.json({ success: true, ...await findNearby({ latitude, longitude, radius, vehicleType }) })
+    response.json({ success: true, ...await findNearby({ latitude, longitude, radius, vehicleType, duration }) })
   } catch (error) { next(error) }
 }
 
@@ -150,6 +151,7 @@ export async function getCarparkDetails(request, response, next) {
         agency: carpark.agency,
         hasEvCharger: Boolean(carpark.hasEvCharger),
         evAvailableLots: carpark.evAvailableLots ?? 0,
+        rate: carpark.rate,
         fetchedAt: carpark.fetchedAt,
         source: carpark.source,
         coordinates: {

@@ -1,17 +1,19 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import { rankCarparks } from '../utils/ranking'
 import { normaliseCarparks, formatDistance } from '../utils/carparkResults'
+import RateSchedule from '@/components/RateSchedule.vue'
 
 const route = useRoute()
 const router = useRouter()
 const COMPARISON_KEY = 'lastComparison'
-const preference = ref('walk')
+const preference = ref('lots')
 const weightOptions = {
-  walk: { lots: 0.3, walk: 0.7, mode: 'walk', label: 'Closer' },
-  lots: { lots: 0.7, walk: 0.3, mode: 'lots', label: 'Available Lots' }
+  lots: { lots: 0.7, walk: 0.3, mode: 'lots', label: 'More lots' },
+  balanced: { lots: 0.5, walk: 0.5, mode: 'balanced', label: 'Balanced' },
+  walk: { lots: 0.3, walk: 0.7, mode: 'walk', label: 'Closer' }
 }
 
 const selectedIds = computed(() => {
@@ -38,7 +40,7 @@ async function loadCarparks() {
         latitude: route.query.latitude,
         longitude: route.query.longitude,
         vehicleType: route.query.vehicleType || 'C',
-        radius: 1000
+        radius: 5000
       }
     })
     const allCarparks = normaliseCarparks(response.data.carparks)
@@ -65,7 +67,10 @@ onMounted(async () => {
   await loadCarparks()
 })
 
-const ranked = computed(() => rankCarparks(selectedCarparks.value, weightOptions[preference.value]))
+// Re-fetch so the backend recalculates the estimated cost for the new duration
+watch(duration, loadCarparks)
+
+const ranked = computed(() => rankCarparks(selectedCarparks.value, RANKING_WEIGHT))
 const  columnClass = computed(()=>{
   const count = ranked.value.length
   return 'col-md-' + Math.floor(12 / count)
@@ -92,6 +97,23 @@ const bestDistance = computed(() => {
   return best
 })
 
+// Cheapest estimated cost among the selected carparks (unknown costs are skipped)
+const bestCost = computed(() => {
+  let best = null
+  for (const carpark of ranked.value) {
+    if (carpark.estimatedCost != null && (best == null || carpark.estimatedCost < best)) {
+      best = carpark.estimatedCost
+    }
+  }
+  return best
+})
+
+// HDB: calculated cost. LTA: "Varies". URA: dash.
+function formatCost(carpark) {
+  if (carpark.estimatedCost != null) return `$${carpark.estimatedCost.toFixed(2)}`
+  return carpark.rate?.costLabel ?? '—'
+}
+
 </script>
 
 <template>
@@ -108,15 +130,15 @@ const bestDistance = computed(() => {
     </div>
 
     <template v-else>
-      <!-- Preference buttons -->
-      <p class="text-secondary mb-2">What matters more to you?</p>
-      <div class="btn-group mb-4" role="group" aria-label="Ranking preference">
-        <template v-for="(value, key) in weightOptions" :key="key">
-          <input type="radio" class="btn-check" :id="'pref-' + key" :value="key" v-model="preference">
-          <label class="btn btn-outline-success" :for="'pref-' + key">{{ value.label }}</label>
-        </template>
+      <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+        <label class="text-secondary mb-0" for="duration">How long will you park?</label>
+        <select id="duration" v-model.number="duration" class="form-select w-auto">
+          <option v-for="minutes in durationOptions" :key="minutes" :value="minutes">
+            {{ minutes / 60 }} hour{{ minutes > 60 ? 's' : '' }}
+          </option>
+        </select>
       </div>
-      
+
       <!-- 2 cards: 6/12 each, 3 cards: 4/12 each; stacked on phones -->
       <div class="row g-3">
         <div v-for="carpark in ranked" :key="carpark.id" class="col-12" :class="columnClass">
@@ -145,7 +167,24 @@ const bestDistance = computed(() => {
                   <dt>Distance</dt>
                   <dd>{{ formatDistance(carpark.distance ?? null) }}</dd>
                 </div>
+                <div>
+                  <dt>Rate type</dt>
+                  <dd>{{ carpark.rate?.rateType ?? '—' }}</dd>
+                </div>
+                <div>
+                  <dt>Rate now</dt>
+                  <dd>{{ carpark.rate?.detail ?? carpark.rate?.label ?? '—' }}</dd>
+                </div>
+                <div :class="{ best: bestCost != null && carpark.estimatedCost === bestCost }">
+                  <dt>Est. cost ({{ duration / 60 }}h)</dt>
+                  <dd>{{ formatCost(carpark) }}</dd>
+                </div>
               </dl>
+
+              <div v-if="carpark.rate?.schedule" class="mb-3">
+                <h3 class="h6 fw-bold mb-2">Parking rates</h3>
+                <RateSchedule :rate="carpark.rate" compact :show-now="false" />
+              </div>
 
               <RouterLink class="details-link mt-auto"
                 :to="{ name: 'carpark-details', params: { id: carpark.id }, query: { ...route.query, ...(carpark.hasEvCharger ? { hasEv: '1' } : {}) } }">
@@ -156,9 +195,15 @@ const bestDistance = computed(() => {
         </div>
       </div>
 
-      <p class="small text-secondary mt-3">
-        Highlighted values are the best in each category. Distance is the straight-line distance from your destination.
-      </p>
+      <aside class="compare-notes mt-4" aria-label="About these figures">
+        <h2 class="notes-title">About these figures</h2>
+        <ul class="notes-list">
+          <li><span class="notes-swatch" aria-hidden="true"></span>Highlighted values are the best in each category.</li>
+          <li><strong>HDB carparks:</strong> estimated cost based on HDB short-term parking charges, starting from now.</li>
+          <li><strong>Malls &amp; buildings:</strong> published rates from LTA OneMotoring, shown under <em>Parking rates</em>. Each mall sets its own pricing rules, so the estimated cost shows <em>Varies</em> instead of a single amount.</li>
+          <li><strong>URA carparks:</strong> rate information is currently not available (shown as —).</li>
+        </ul>
+      </aside>
     </template>
     </div>
   </section>
@@ -199,6 +244,45 @@ const bestDistance = computed(() => {
 .metrics .best {
   background: #e6f4f0;
   color: #0f5c4d;
+}
+.compare-notes {
+  padding: 1rem 1.25rem;
+  border: 1px solid #d9e3df;
+  border-left: 4px solid #0f5c4d;
+  border-radius: 0.75rem;
+  background: white;
+}
+.notes-title {
+  margin-bottom: 0.5rem;
+  color: #0f5c4d;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.notes-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #4b5b54;
+  font-size: 0.875rem;
+}
+.notes-list li::marker {
+  color: #0f5c4d;
+}
+.notes-list strong {
+  color: #173e30;
+}
+.notes-swatch {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-right: 0.4rem;
+  border-radius: 0.2rem;
+  background: #e6f4f0;
+  border: 1px solid #b9ddd1;
+  vertical-align: -0.1rem;
 }
 .details-link {
   color: #0f5c4d;
