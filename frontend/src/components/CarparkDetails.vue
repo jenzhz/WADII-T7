@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
+import RateSchedule from '@/components/RateSchedule.vue'
 
 const props = defineProps({
   carparkId: {
@@ -252,6 +253,16 @@ watch(
             </p>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Parking Rates -->
+    <div v-if="carparkDetails?.rate" class="card route-card mt-4">
+      <div class="card-header bg-white py-3 border-0">
+        <h2 class="h5 mb-0 fw-semibold">Parking Rates</h2>
+      </div>
+      <div class="card-body p-4 pt-0">
+        <RateSchedule :rate="carparkDetails.rate" />
       </div>
     </div>
 

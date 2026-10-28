@@ -26,6 +26,10 @@ const availability = computed(() => {
     </div>
     <h3 class="h5 fw-bold mb-1">{{ carpark.name }}</h3>
     <p class="text-secondary small mb-4">{{ carpark.agency || 'Carpark' }} · {{ carpark.carparkId || carpark.id }} · {{ { C: 'Car', Y: 'Motorcycle', H: 'Heavy vehicle' }[carpark.lotType] || carpark.lotType }}</p>
+    <p class="rate-line small mb-3">
+      <span class="rate-pill">{{ carpark.rate?.label ?? '—' }}</span>
+      <span v-if="carpark.rate?.rateType" class="text-secondary ms-1">{{ carpark.rate.rateType }}</span>
+    </p>
     <p class="small text-secondary" v-if="carpark.latitude != null && carpark.longitude != null">Coordinates: {{ carpark.latitude }}, {{ carpark.longitude }}</p>
     <dl class="metrics">
       <div><dt>Available lots</dt><dd>{{ carpark.availableLots ?? '—' }}</dd></div>
@@ -60,5 +64,6 @@ const availability = computed(() => {
 .metrics dd { font-size: 1.1rem; font-weight: 700; margin: 0; }
 .details-link { color: #0f5c4d; font-size: .85rem; font-weight: 700; text-decoration: none; }
 .details-link:hover { text-decoration: underline; }
+.rate-pill { display: inline-block; padding: .25rem .6rem; border-radius: 2rem; background: #f3f6f5; color: #173e30; font-weight: 700; font-size: .78rem; }
 .form-check-input:checked { background-color: #0f5c4d; border-color: #0f5c4d; }
 </style>
