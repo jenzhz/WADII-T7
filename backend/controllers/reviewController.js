@@ -5,7 +5,7 @@ const OPTIONAL_RATINGS = [
   'lotSpaciousness',
   'entranceExitAccessibility',
   'signage',
-  'evExperience',
+  'pricing',
 ]
 
 function httpError(message, status) {
@@ -76,7 +76,7 @@ export async function getCarparkReviews(request, response, next) {
         lotSpaciousness: averageExpression('lotSpaciousness'),
         entranceExitAccessibility: averageExpression('entranceExitAccessibility'),
         signage: averageExpression('signage'),
-        evExperience: averageExpression('evExperience'),
+        pricing: averageExpression('pricing'),
       } },
     ])
 
@@ -186,12 +186,12 @@ export async function getCommunitySummaries(request, response, next) {
         lotSpaciousness: averageExpression('lotSpaciousness'),
         entranceExitAccessibility: averageExpression('entranceExitAccessibility'),
         signage: averageExpression('signage'),
-        evExperience: averageExpression('evExperience'),
+        pricing: averageExpression('pricing'),
         lastReviewedAt: { $max: '$updatedAt' },
         latestComment: { $first: '$comment' },
         latestRating: { $first: '$overallRating' },
       } },
-      { $project: { _id: 0, carparkId: '$_id', reviewCount: 1, overallRating: 1, lotSpaciousness: 1, entranceExitAccessibility: 1, signage: 1, evExperience: 1, lastReviewedAt: 1, latestComment: 1, latestRating: 1 } },
+      { $project: { _id: 0, carparkId: '$_id', reviewCount: 1, overallRating: 1, lotSpaciousness: 1, entranceExitAccessibility: 1, signage: 1, pricing: 1, lastReviewedAt: 1, latestComment: 1, latestRating: 1 } },
     ])
     const recentActivity = await Review.find(match).sort({ updatedAt: -1 }).limit(8)
       .select('carparkId overallRating comment updatedAt user').populate('user', 'name').lean()

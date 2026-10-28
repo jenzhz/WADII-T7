@@ -121,7 +121,7 @@
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": { "mode": "raw", "raw": "{\n  \"carparkId\": \"{{carparkId}}\",\n  \"overallRating\": 5,\n  \"lotSpaciousness\": 5,\n  \"entranceExitAccessibility\": 4,\n  \"signage\": 4,\n  \"evExperience\": 4,\n  \"comment\": \"Spacious lots and clear signs.\"\n}" },
+            "body": { "mode": "raw", "raw": "{\n  \"carparkId\": \"{{carparkId}}\",\n  \"overallRating\": 5,\n  \"lotSpaciousness\": 5,\n  \"entranceExitAccessibility\": 4,\n  \"signage\": 4,\n  \"pricing\": 4,\n  \"comment\": \"Spacious lots and clear signs.\"\n}" },
             "url": "{{baseUrl}}/api/reviews"
           }
         },

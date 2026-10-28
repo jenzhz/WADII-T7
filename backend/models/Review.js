@@ -24,7 +24,7 @@ const reviewSchema = new mongoose.Schema(
     lotSpaciousness: ratingField(),
     entranceExitAccessibility: ratingField(),
     signage: ratingField(),
-    evExperience: ratingField(),
+    pricing: ratingField(),
     comment: { type: String, required: true, trim: true, minlength: 1, maxlength: 2000 },
     replies: { type: [replySchema], default: [] },
   },

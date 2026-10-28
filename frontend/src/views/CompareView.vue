@@ -9,11 +9,13 @@ import RateSchedule from '@/components/RateSchedule.vue'
 const route = useRoute()
 const router = useRouter()
 const COMPARISON_KEY = 'lastComparison'
-const preference = ref('lots')
+const duration = ref(120)
+const durationOptions = [60, 120, 180, 240, 360, 480]
+const preference = ref('walk')
 const weightOptions = {
-  lots: { lots: 0.7, walk: 0.3, mode: 'lots', label: 'More lots' },
-  balanced: { lots: 0.5, walk: 0.5, mode: 'balanced', label: 'Balanced' },
-  walk: { lots: 0.3, walk: 0.7, mode: 'walk', label: 'Closer' }
+  walk: { lots: 0.3, walk: 0.7, mode: 'walk', label: 'Closer' },
+  lots: { lots: 0.7, walk: 0.3, mode: 'lots', label: 'Available Lots' },
+  price: { lots: 0, walk: 0, mode: 'price', label: 'Cheapest' },
 }
 
 const selectedIds = computed(() => {
@@ -40,7 +42,8 @@ async function loadCarparks() {
         latitude: route.query.latitude,
         longitude: route.query.longitude,
         vehicleType: route.query.vehicleType || 'C',
-        radius: 5000
+        radius: 1000,
+        duration: duration.value,
       }
     })
     const allCarparks = normaliseCarparks(response.data.carparks)
@@ -70,9 +73,9 @@ onMounted(async () => {
 // Re-fetch so the backend recalculates the estimated cost for the new duration
 watch(duration, loadCarparks)
 
-const ranked = computed(() => rankCarparks(selectedCarparks.value, RANKING_WEIGHT))
+const ranked = computed(() => rankCarparks(selectedCarparks.value, weightOptions[preference.value]))
 const  columnClass = computed(()=>{
-  const count = ranked.value.length
+  const count = Math.max(1, ranked.value.length)
   return 'col-md-' + Math.floor(12 / count)
 })
 // Most available lots among the selected carparks (null values are skipped)
@@ -139,6 +142,14 @@ function formatCost(carpark) {
         </select>
       </div>
 
+      <p class="text-secondary mb-2">What matters more to you?</p>
+      <div class="btn-group mb-4" role="group" aria-label="Ranking preference">
+        <template v-for="(value, key) in weightOptions" :key="key">
+          <input :id="`pref-${key}`" v-model="preference" type="radio" class="btn-check" :value="key">
+          <label class="btn btn-outline-success" :for="`pref-${key}`">{{ value.label }}</label>
+        </template>
+      </div>
+
       <!-- 2 cards: 6/12 each, 3 cards: 4/12 each; stacked on phones -->
       <div class="row g-3">
         <div v-for="carpark in ranked" :key="carpark.id" class="col-12" :class="columnClass">
@@ -202,6 +213,7 @@ function formatCost(carpark) {
           <li><strong>HDB carparks:</strong> estimated cost based on HDB short-term parking charges, starting from now.</li>
           <li><strong>Malls &amp; buildings:</strong> published rates from LTA OneMotoring, shown under <em>Parking rates</em>. Each mall sets its own pricing rules, so the estimated cost shows <em>Varies</em> instead of a single amount.</li>
           <li><strong>URA carparks:</strong> rate information is currently not available (shown as —).</li>
+          <li><strong>Cheapest:</strong> calculated estimated costs are ordered lowest first; <em>Varies</em> and unavailable prices appear afterwards.</li>
         </ul>
       </aside>
     </template>

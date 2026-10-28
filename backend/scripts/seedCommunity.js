@@ -145,7 +145,7 @@ function buildReviewDocuments(users, carparks) {
       lotSpaciousness: Math.max(1, Math.min(5, overallRating + (index % 3 === 0 ? -1 : 0))),
       entranceExitAccessibility: Math.max(1, Math.min(5, overallRating + (index % 4 === 0 ? -1 : 0))),
       signage: Math.max(1, Math.min(5, overallRating + (index % 5 === 0 ? -1 : 0))),
-      evExperience: carpark.hasEvCharger ? Math.max(3, overallRating) : null,
+      pricing: Math.max(1, Math.min(5, overallRating + (index % 6 === 0 ? -1 : 0))),
       comment: REVIEW_COMMENTS[index % REVIEW_COMMENTS.length],
       replies,
       createdAt,
