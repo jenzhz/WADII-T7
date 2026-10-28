@@ -96,23 +96,15 @@ export async function getCarparkDetails(request, response, next) {
       ['destLng', 'endLng', 'destinationLng', 'longitude']
     )
 
-    if (!queryDestination) {
-      return response.status(400).json({
-        success: false,
-        message:
-          'Destination coordinates are required (provide destLat & destLng, or latitude & longitude).',
-      })
-    }
-
     let carpark
-    let routeMetrics
+    let routeMetrics = null
 
-    if (queryOrigin) {
+    if (queryDestination && queryOrigin) {
       ;[carpark, routeMetrics] = await Promise.all([
         getCarparkAvailabilityById(carparkId, lotType),
         getWalkingRoute(queryOrigin, queryDestination),
       ])
-    } else {
+    } else if (queryDestination) {
       carpark = await getCarparkAvailabilityById(carparkId, lotType)
 
       if (!Number.isFinite(carpark.latitude) || !Number.isFinite(carpark.longitude)) {
@@ -127,11 +119,13 @@ export async function getCarparkDetails(request, response, next) {
         { lat: carpark.latitude, lng: carpark.longitude },
         queryDestination
       )
+    } else {
+      carpark = await getCarparkAvailabilityById(carparkId, lotType)
     }
 
     const resolvedOriginLat = carpark.latitude ?? queryOrigin?.lat ?? null
     const resolvedOriginLng = carpark.longitude ?? queryOrigin?.lng ?? null
-    const straightLineDistance =
+    const straightLineDistance = queryDestination &&
       Number.isFinite(resolvedOriginLat) && Number.isFinite(resolvedOriginLng)
         ? Math.round(
             distanceInMetres(
@@ -164,18 +158,18 @@ export async function getCarparkDetails(request, response, next) {
           latitude: resolvedOriginLat,
           longitude: resolvedOriginLng,
         },
-        destination: {
+        destination: queryDestination ? {
           name: request.query.destinationName || request.query.destination || 'Selected Destination',
           latitude: queryDestination.lat,
           longitude: queryDestination.lng,
-        },
+        } : null,
         straightLineDistance,
-        walkingDistance: routeMetrics.walkingDistance,
-        walkingDistanceKm: routeMetrics.walkingDistanceKm,
-        walkingTime: routeMetrics.walkingTime,
-        totalTimeSeconds: routeMetrics.totalTimeSeconds,
-        routeGeometry: routeMetrics.routeGeometry,
-        routeInstructions: routeMetrics.routeInstructions,
+        walkingDistance: routeMetrics?.walkingDistance ?? null,
+        walkingDistanceKm: routeMetrics?.walkingDistanceKm ?? null,
+        walkingTime: routeMetrics?.walkingTime ?? null,
+        totalTimeSeconds: routeMetrics?.totalTimeSeconds ?? null,
+        routeGeometry: routeMetrics?.routeGeometry ?? null,
+        routeInstructions: routeMetrics?.routeInstructions ?? [],
       },
     })
   } catch (error) {

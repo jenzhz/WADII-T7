@@ -9,11 +9,14 @@ import RateSchedule from '@/components/RateSchedule.vue'
 const route = useRoute()
 const router = useRouter()
 const COMPARISON_KEY = 'lastComparison'
-const duration = ref(120) // minutes, used for the estimated cost
-const durationOptions = [60, 120, 180, 240]
-// Compare always ranks by one combined score: 50% available lots + 50% distance.
-// Stars show the same score, so more stars always means a higher rank.
-const RANKING_WEIGHT = { lots: 0.5, walk: 0.5, mode: 'balanced' }
+const duration = ref(120)
+const durationOptions = [60, 120, 180, 240, 360, 480]
+const preference = ref('walk')
+const weightOptions = {
+  walk: { lots: 0.3, walk: 0.7, mode: 'walk', label: 'Closer' },
+  lots: { lots: 0.7, walk: 0.3, mode: 'lots', label: 'Available Lots' },
+  price: { lots: 0, walk: 0, mode: 'price', label: 'Cheapest' },
+}
 
 const selectedIds = computed(() => {
   const ids = route.query.ids
@@ -39,8 +42,8 @@ async function loadCarparks() {
         latitude: route.query.latitude,
         longitude: route.query.longitude,
         vehicleType: route.query.vehicleType || 'C',
-        radius: 5000,
-        duration: duration.value
+        radius: 1000,
+        duration: duration.value,
       }
     })
     const allCarparks = normaliseCarparks(response.data.carparks)
@@ -70,9 +73,9 @@ onMounted(async () => {
 // Re-fetch so the backend recalculates the estimated cost for the new duration
 watch(duration, loadCarparks)
 
-const ranked = computed(() => rankCarparks(selectedCarparks.value, RANKING_WEIGHT))
+const ranked = computed(() => rankCarparks(selectedCarparks.value, weightOptions[preference.value]))
 const  columnClass = computed(()=>{
-  const count = ranked.value.length
+  const count = Math.max(1, ranked.value.length)
   return 'col-md-' + Math.floor(12 / count)
 })
 // Most available lots among the selected carparks (null values are skipped)
@@ -114,10 +117,6 @@ function formatCost(carpark) {
   return carpark.rate?.costLabel ?? '—'
 }
 
-function toStar(score) {
-  const filled = Math.round(score * 5)
-  return '★'.repeat(filled) + '☆'.repeat(5 - filled)
-}
 </script>
 
 <template>
@@ -143,6 +142,14 @@ function toStar(score) {
         </select>
       </div>
 
+      <p class="text-secondary mb-2">What matters more to you?</p>
+      <div class="btn-group mb-4" role="group" aria-label="Ranking preference">
+        <template v-for="(value, key) in weightOptions" :key="key">
+          <input :id="`pref-${key}`" v-model="preference" type="radio" class="btn-check" :value="key">
+          <label class="btn btn-outline-success" :for="`pref-${key}`">{{ value.label }}</label>
+        </template>
+      </div>
+
       <!-- 2 cards: 6/12 each, 3 cards: 4/12 each; stacked on phones -->
       <div class="row g-3">
         <div v-for="carpark in ranked" :key="carpark.id" class="col-12" :class="columnClass">
@@ -154,9 +161,13 @@ function toStar(score) {
               </div>
 
               <h2 class="h6 fw-bold mb-1">{{ carpark.name }}</h2>
-              <p class="stars mb-3" :aria-label="Math.round(carpark.score * 5) + ' out of 5 stars'">
-                {{ toStar(carpark.score) }}
-              </p>
+              <span v-if="carpark.hasEvCharger" class="ev-charging-badge mb-3"
+                title="EV charging point available" aria-label="EV charging point available">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="currentColor" d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66l.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8Z" />
+                </svg>
+                EV Charging
+              </span>
 
               <dl class="metrics mb-3">
                 <div :class="{ best: bestLots != null && carpark.availableLots === bestLots }">
@@ -187,7 +198,7 @@ function toStar(score) {
               </div>
 
               <RouterLink class="details-link mt-auto"
-                :to="{ name: 'carpark-details', params: { id: carpark.id }, query: route.query }">
+                :to="{ name: 'carpark-details', params: { id: carpark.id }, query: { ...route.query, ...(carpark.hasEvCharger ? { hasEv: '1' } : {}) } }">
                 View details →
               </RouterLink>
             </div>
@@ -202,6 +213,7 @@ function toStar(score) {
           <li><strong>HDB carparks:</strong> estimated cost based on HDB short-term parking charges, starting from now.</li>
           <li><strong>Malls &amp; buildings:</strong> published rates from LTA OneMotoring, shown under <em>Parking rates</em>. Each mall sets its own pricing rules, so the estimated cost shows <em>Varies</em> instead of a single amount.</li>
           <li><strong>URA carparks:</strong> rate information is currently not available (shown as —).</li>
+          <li><strong>Cheapest:</strong> calculated estimated costs are ordered lowest first; <em>Varies</em> and unavailable prices appear afterwards.</li>
         </ul>
       </aside>
     </template>
@@ -225,11 +237,8 @@ function toStar(score) {
 .compare-card.recommended {
   border: 2px solid #0f5c4d;
 }
-.stars {
-  color: #f5a623;
-  letter-spacing: 2px;
-  font-size: 1.1rem;
-}
+.ev-charging-badge { display: inline-flex; align-self: flex-start; align-items: center; gap: .3rem; padding: .3rem .6rem; border-radius: 2rem; color: #15803d; background: #dcfce7; font-size: .72rem; font-weight: 750; white-space: nowrap; }
+.ev-charging-badge svg { width: 1rem; height: 1rem; }
 .metrics div {
   display: flex;
   justify-content: space-between;

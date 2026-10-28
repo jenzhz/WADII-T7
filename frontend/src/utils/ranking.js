@@ -60,7 +60,13 @@ export function rankCarparks(carparks, weight) {
 
   const lotsValue = carpark => carpark.availableLots == null ? -1 : Number(carpark.availableLots)
   const walkValue = carpark => getWalkingMinutes(carpark) ?? Number.POSITIVE_INFINITY
+  const priceValue = carpark => carpark.estimatedCost == null
+    ? Number.POSITIVE_INFINITY
+    : Number(carpark.estimatedCost)
   scored.sort((a, b) => {
+    if (weight.mode === 'price') {
+      return priceValue(a) - priceValue(b) || walkValue(a) - walkValue(b) || lotsValue(b) - lotsValue(a) || a.name.localeCompare(b.name)
+    }
     if (weight.mode === 'lots') {
       return lotsValue(b) - lotsValue(a) || walkValue(a) - walkValue(b) || a.name.localeCompare(b.name)
     }
