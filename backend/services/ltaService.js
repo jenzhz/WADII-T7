@@ -1,3 +1,5 @@
+import { estimateCost, getRateInfo } from './rateService.js'
+
 const ENDPOINT = 'https://datamall2.mytransport.sg/ltaodataservice/CarParkAvailabilityv2'
 const EV_BATCH_ENDPOINT = 'https://datamall2.mytransport.sg/ltaodataservice/EVCBatch'
 
@@ -249,7 +251,7 @@ export async function getCarparkAvailabilityById(carparkId, lotType = 'C', prelo
     row => String(row.id).toLowerCase() === normalizedTarget
   )
   if (exactCompositeMatch) {
-    return { ...exactCompositeMatch, fetchedAt: data.fetchedAt, source: data.source }
+    return { ...exactCompositeMatch, rate: getRateInfo(exactCompositeMatch), fetchedAt: data.fetchedAt, source: data.source }
   }
 
   const matchingByCarparkId = data.carparks.filter(
@@ -264,16 +266,22 @@ export async function getCarparkAvailabilityById(carparkId, lotType = 'C', prelo
     matchingByCarparkId.find(row => String(row.lotType).toUpperCase() === normalizedLotType) ||
     matchingByCarparkId[0]
 
-  return { ...preferredMatch, fetchedAt: data.fetchedAt, source: data.source }
+  return { ...preferredMatch, rate: getRateInfo(preferredMatch), fetchedAt: data.fetchedAt, source: data.source }
 }
 
-export async function getNearbyCarparks({ latitude, longitude, radius, vehicleType }) {
+export async function getNearbyCarparks({ latitude, longitude, radius, vehicleType, duration = 120 }) {
   const data = await getCarparkAvailability()
+  const now = new Date()
   const carparks = data.carparks
     .filter(row => row.lotType === vehicleType && row.latitude !== null && row.longitude !== null)
     .map(row => ({ ...row, distance: distanceInMetres(latitude, longitude, row.latitude, row.longitude) }))
     .filter(row => row.distance <= radius)
     .sort((a, b) => a.distance - b.distance)
-    .map(row => ({ ...row, distance: Math.round(row.distance) }))
-  return { ...data, carparks, radius, distanceType: 'straight-line' }
+    .map(row => ({
+      ...row,
+      distance: Math.round(row.distance),
+      rate: getRateInfo(row, now),
+      estimatedCost: estimateCost(row, duration, now),
+    }))
+  return { ...data, carparks, radius, duration, distanceType: 'straight-line' }
 }
