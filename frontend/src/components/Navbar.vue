@@ -102,7 +102,7 @@ watch(() => route.fullPath, refreshSearchTarget)
           <RouterLink v-if="signedIn" class="nav-link" :class="{ active: route.name === 'compare' }" to="/compare">Compare</RouterLink>
           <RouterLink v-if="signedIn" class="nav-link" :class="{ active: route.name === 'favourites' }" to="/favourites">Favourites</RouterLink>
           <RouterLink class="nav-link" :class="{ active: route.name === 'community' }" to="/community">Community</RouterLink>
-          <span v-if="signedIn" class="navbar-user" :title="currentUser?.email || ''">{{ currentUser?.name }}</span>
+          <RouterLink v-if="signedIn" class="nav-link navbar-user" :class="{ active: route.name === 'profile' }" to="/profile" :title="currentUser?.name || ''">Profile</RouterLink>
           <button v-if="signedIn" class="btn btn-outline-success logout-button" type="button" @click="logout">Log out</button>
           <RouterLink v-else class="btn btn-outline-success logout-button" to="/login">Log in</RouterLink>
         </div>

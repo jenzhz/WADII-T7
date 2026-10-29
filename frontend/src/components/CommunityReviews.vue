@@ -185,7 +185,16 @@ watch(() => props.carparkId, loadReviews)
       <div v-if="!reviews.length" class="review-state"><h3>No community reviews yet.</h3><p>Be the first to review this carpark.</p></div>
       <div v-else class="review-list">
         <article v-for="review in reviews" :key="review._id" class="review-card">
-          <header><div><div class="review-author-line"><h3>{{ review.user?.name || 'Community member' }}</h3><StarRating :model-value="review.overallRating" readonly /></div><small>{{ formattedDate(review.updatedAt) }}<span v-if="review.updatedAt !== review.createdAt"> · edited</span></small></div><div v-if="isMine(review)" class="owner-actions"><button @click="startReview(review)">Edit</button><button class="danger" @click="removeReview(review)">Delete</button></div></header>
+          <header>
+            <div>
+              <div class="review-author-line">
+                <h3><RouterLink v-if="review.user?._id" class="profile-link" :to="{ name: 'user-profile', params: { userId: review.user._id } }">{{ review.user.name }}</RouterLink><span v-else>Community member</span></h3>
+                <StarRating :model-value="review.overallRating" readonly />
+              </div>
+              <small>{{ formattedDate(review.updatedAt) }}<span v-if="review.updatedAt !== review.createdAt"> · edited</span></small>
+            </div>
+            <div v-if="isMine(review)" class="owner-actions"><button @click="startReview(review)">Edit</button><button class="danger" @click="removeReview(review)">Delete</button></div>
+          </header>
           <p class="review-comment">“{{ review.comment }}”</p>
           <dl class="review-ratings"><template v-for="([key, label]) in [['lotSpaciousness','Lot space'],['entranceExitAccessibility','Access'],['signage','Signage'],['pricing','Pricing']]" :key="key"><div v-if="review[key]"><dt>{{ label }}</dt><dd>{{ review[key] }}/5</dd></div></template></dl>
 
@@ -193,7 +202,14 @@ watch(() => props.carparkId, loadReviews)
             <h4>Replies <span>{{ review.replies.length }}</span></h4>
             <div v-for="reply in review.replies" :key="reply._id" class="reply">
               <template v-if="editingReply?.replyId === reply._id"><textarea v-model="editReplyText" maxlength="1000" rows="2"></textarea><div class="reply-actions"><button @click="saveReplyEdit">Save</button><button @click="editingReply = null">Cancel</button></div></template>
-              <template v-else><div><strong>{{ reply.user?.name || 'Community member' }}</strong><small>{{ formattedDate(reply.updatedAt) }}</small></div><p>{{ reply.comment }}</p><div v-if="isMine(reply)" class="reply-actions"><button @click="startReplyEdit(review._id, reply)">Edit</button><button class="danger" @click="removeReply(review._id, reply._id)">Delete</button></div></template>
+              <template v-else>
+                <div>
+                  <strong><RouterLink v-if="reply.user?._id" class="profile-link" :to="{ name: 'user-profile', params: { userId: reply.user._id } }">{{ reply.user.name }}</RouterLink><span v-else>Community member</span></strong>
+                  <small>{{ formattedDate(reply.updatedAt) }}</small>
+                </div>
+                <p>{{ reply.comment }}</p>
+                <div v-if="isMine(reply)" class="reply-actions"><button @click="startReplyEdit(review._id, reply)">Edit</button><button class="danger" @click="removeReply(review._id, reply._id)">Delete</button></div>
+              </template>
             </div>
             <form v-if="user" class="reply-form" @submit.prevent="sendReply(review)"><input v-model="replyDrafts[review._id]" maxlength="1000" :aria-label="`Reply to ${review.user?.name || 'review'}`" placeholder="Add a helpful reply…" /><button type="submit" :disabled="!replyDrafts[review._id]?.trim()">Reply</button></form>
           </div>
@@ -204,6 +220,8 @@ watch(() => props.carparkId, loadReviews)
 </template>
 
 <style scoped>
+.profile-link { color: #087a58; text-decoration: underline; text-underline-offset: .15em; }
+.profile-link:hover { color: #055c42; }
 .community-reviews { margin-top: 2rem; padding: 2rem; border: 2px solid #174f40; border-radius: 1.35rem; background: white; scroll-margin-top: 6rem; }.community-heading, .form-heading, .review-card header { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }.community-heading h2 { margin: 0; font-size: 1.8rem; }.write-button, .submit-button { display: inline-flex; min-height: 2.9rem; align-items: center; padding: .65rem 1.1rem; border: 1px solid #07875f; border-radius: .7rem; color: #06271f; background: #2cd790; font-weight: 750; text-decoration: none; }
 .rating-summary { display: grid; grid-template-columns: 1fr 2fr; gap: 2rem; margin: 1.5rem 0; padding: 1.4rem; border-radius: 1rem; background: #edf8f3; }.overall-score { display: flex; align-items: center; flex-direction: column; justify-content: center; border-right: 1px solid #c8ded5; }.overall-score > strong { color: #087a58; font-size: 3.5rem; line-height: 1; }.overall-score > span { margin-top: .35rem; color: #60736b; font-size: .8rem; }.breakdown { margin: 0; }.breakdown div { display: flex; justify-content: space-between; padding: .3rem 0; }.breakdown dt { font-weight: 500; }.breakdown dd { margin: 0; font-weight: 750; }
 .review-form { margin: 1.5rem 0; padding: 1.5rem; border: 1.5px solid #174f40; border-radius: 1rem; }.form-heading h3 { margin: 0; }.form-heading p { color: #60736b; }.text-button, .owner-actions button, .reply-actions button { border: 0; color: #087a58; background: transparent; font-weight: 700; }.rating-fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: .9rem 1.5rem; margin: 1rem 0; }.rating-fields label { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }.required-rating { display: flex; min-height: 6.5rem; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.2rem 1.35rem; border: 2px solid #087a58; border-radius: .9rem; grid-column: 1 / -1; background: #e7f9f0; box-shadow: 0 5px 18px #087a5814; }.required-rating strong { display: block; color: #073f32; font-size: 1.3rem; }.required-rating strong span { color: #c73737; }.required-rating small { display: block; margin-top: .25rem; color: #48675c; }.required-rating :deep(.star-input button) { font-size: 2.35rem; }.comment-field { display: grid; gap: .4rem; }.comment-field textarea, .reply textarea, .reply-form input { width: 100%; padding: .75rem; border: 1.5px solid #9cb5ab; border-radius: .6rem; }.comment-field small { color: #6b7d75; text-align: right; }.submit-button { margin-top: 1rem; }.submit-button:disabled { opacity: .55; }

@@ -14,7 +14,7 @@ const durationOptions = [60, 120, 180, 240, 360, 480]
 const preference = ref('walk')
 const weightOptions = {
   walk: { lots: 0.3, walk: 0.7, mode: 'walk', label: 'Closer' },
-  lots: { lots: 0.7, walk: 0.3, mode: 'lots', label: 'Available Lots' },
+  lots: { lots: 0.7, walk: 0.3, mode: 'lots', label: 'Available lots' },
   price: { lots: 0, walk: 0, mode: 'price', label: 'Cheapest' },
 }
 
@@ -122,7 +122,7 @@ function formatCost(carpark) {
 <template>
   <section class="compare-page">
     <div class="compare-inner">
-    <h1 class="h2 mb-3">Compare Carparks</h1>
+    <h1 class="compare-title mb-4">Compare carparks</h1>
 
     <!-- Loading / error / not enough carparks -->
     <p v-if="loading" class="text-secondary">Loading carparks…</p>
@@ -133,25 +133,29 @@ function formatCost(carpark) {
     </div>
 
     <template v-else>
-      <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
-        <label class="text-secondary mb-0" for="duration">How long will you park?</label>
-        <select id="duration" v-model.number="duration" class="form-select w-auto">
-          <option v-for="minutes in durationOptions" :key="minutes" :value="minutes">
-            {{ minutes / 60 }} hour{{ minutes > 60 ? 's' : '' }}
-          </option>
-        </select>
-      </div>
+      <div class="compare-controls">
+        <div class="duration-field">
+          <label class="control-label" for="duration">Parking duration</label>
+          <select id="duration" v-model.number="duration" class="form-select">
+            <option v-for="minutes in durationOptions" :key="minutes" :value="minutes">
+              {{ minutes / 60 }} hour{{ minutes > 60 ? 's' : '' }}
+            </option>
+          </select>
+        </div>
 
-      <p class="text-secondary mb-2">What matters more to you?</p>
-      <div class="btn-group mb-4" role="group" aria-label="Ranking preference">
-        <template v-for="(value, key) in weightOptions" :key="key">
-          <input :id="`pref-${key}`" v-model="preference" type="radio" class="btn-check" :value="key">
-          <label class="btn btn-outline-success" :for="`pref-${key}`">{{ value.label }}</label>
-        </template>
+        <fieldset class="preference-field">
+          <legend>What matters most?</legend>
+          <div class="preference-options">
+            <template v-for="(value, key) in weightOptions" :key="key">
+              <input :id="`pref-${key}`" v-model="preference" type="radio" name="comparison-preference" class="btn-check" :value="key">
+              <label class="btn preference-button" :for="`pref-${key}`">{{ value.label }}</label>
+            </template>
+          </div>
+        </fieldset>
       </div>
 
       <!-- 2 cards: 6/12 each, 3 cards: 4/12 each; stacked on phones -->
-      <div class="row g-3">
+      <TransitionGroup name="card-list" tag="div" class="row g-3">
         <div v-for="carpark in ranked" :key="carpark.id" class="col-12" :class="columnClass">
           <div class="card h-100 compare-card" :class="{ recommended: carpark.rank === 1 }">
             <div class="card-body d-flex flex-column">
@@ -204,7 +208,7 @@ function formatCost(carpark) {
             </div>
           </div>
         </div>
-      </div>
+      </TransitionGroup>
 
       <aside class="compare-notes mt-4" aria-label="About these figures">
         <h2 class="notes-title">About these figures</h2>
@@ -230,6 +234,20 @@ function formatCost(carpark) {
   background-size: 19px 19px;
 }
 .compare-inner { width: min(100%, 76rem); margin: auto; }
+.compare-title { font-size: clamp(2.5rem, 5vw, 4rem); }
+.compare-controls { display: grid; grid-template-columns: minmax(12rem, .65fr) minmax(0, 1.35fr); align-items: end; gap: 2rem; margin-bottom: 1.5rem; padding: 1.4rem 1.5rem; border: 2px solid #174f40; border-radius: 1.25rem; background: white; }
+.control-label, .preference-field legend { display: block; float: none; width: auto; margin: 0 0 .5rem; color: #173e30; font-size: .85rem; font-weight: 750; }
+.duration-field .form-select { min-height: 3.25rem; padding: .75rem 2.5rem .75rem 1rem; border: 1.5px solid #174f40; border-radius: .8rem; color: #173e30; }
+.preference-field { min-width: 0; margin: 0; padding: 0; border: 0; }
+.preference-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .25rem; padding: .25rem; border: 1.5px solid #174f40; border-radius: .85rem; background: #edf3f1; }
+.preference-button { display: flex; min-height: 2.7rem; align-items: center; justify-content: center; margin: 0; padding: .6rem .75rem; border: 0; border-radius: .6rem; color: #52665d; background: transparent; font-size: .95rem; font-weight: 700; }
+.preference-button:hover { color: #073f32; background: #e0eee7; }
+.btn-check:checked + .preference-button { color: #06271f; background: #2cd790; box-shadow: 0 2px 6px #073f3212; }
+.btn-check:focus-visible + .preference-button { outline: 2px solid #087a58; outline-offset: 2px; }
+@media (max-width: 700px) {
+  .compare-controls { grid-template-columns: 1fr; gap: 1.25rem; padding: 1.25rem; }
+  .preference-button { padding-inline: .35rem; font-size: .85rem; }
+}
 .compare-card {
   border-radius: 1rem;
   border: 1px solid #d9e3df;

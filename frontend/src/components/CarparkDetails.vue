@@ -197,8 +197,8 @@ watch(
   <div class="carpark-details-component">
     <!-- Carpark Header Card -->
     <div class="card details-header mb-4">
-      <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div>
+      <div class="card-body details-header-layout">
+        <div class="details-heading">
           <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
             <span class="badge id-badge">
               ID: {{ carparkDetails?.carparkId || carparkId }}
@@ -208,7 +208,7 @@ watch(
             </span>
             <span class="badge type-badge">{{ lotTypeLabel }}</span>
           </div>
-          <h1 class="h2 fw-bold mb-1 d-flex align-items-center gap-2 flex-wrap">
+          <h1 class="fw-bold mb-1">
             <span>{{ carparkDetails?.carparkName || carparkDetails?.name || carparkName }}</span>
             <span
               v-if="showEvLeaf"
@@ -231,7 +231,7 @@ watch(
           </p>
         </div>
 
-        <div class="d-flex flex-column align-items-md-end gap-2">
+        <div class="details-actions">
           <button
             v-if="signedIn"
             type="button"
@@ -417,7 +417,13 @@ watch(
 }
 
 .details-header { padding: .5rem; }
-.details-header h1 { font-size: clamp(1.8rem, 4vw, 3rem); letter-spacing: -.035em; }
+.details-header-layout { display: grid; grid-template-columns: minmax(0, 1fr) 14rem; align-items: start; gap: 2rem; padding: 1.5rem; }
+.details-heading { min-width: 0; }
+.details-header h1 { font-size: clamp(1.65rem, 3.2vw, 2.6rem); line-height: 1.2; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.details-header .ev-leaf-badge { margin-left: .4rem; vertical-align: middle; }
+.details-actions { display: flex; flex-direction: column; align-items: stretch; gap: .65rem; min-width: 0; }
+.details-actions button { width: 100%; justify-content: center; }
+.details-actions small { text-align: right; overflow-wrap: anywhere; }
 .ev-leaf-badge { display: inline-flex; align-items: center; justify-content: center; width: 2.15rem; height: 2.15rem; border-radius: 50%; background: #dcfce7; color: #15803d; flex-shrink: 0; }
 .ev-leaf-icon { width: 1.35rem; height: 1.35rem; }
 .id-badge, .type-badge { color: #10243a; background: #edf2f5; }
@@ -447,7 +453,7 @@ watch(
 .direction-distance { color: #087a58; background: #dff7ec; }
 
 @media (max-width: 767px) {
-  .details-header .card-body { align-items: flex-start !important; }
-  .details-header .align-items-md-end { align-items: flex-start !important; }
+  .details-header-layout { grid-template-columns: 1fr; gap: 1.25rem; padding: 1rem; }
+  .details-actions small { text-align: left; }
 }
 </style>

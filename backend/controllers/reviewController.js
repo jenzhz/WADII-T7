@@ -1,5 +1,6 @@
 import mongoose from 'mongoose'
 import Review from '../models/Review.js'
+import User from '../models/User.js'
 
 const OPTIONAL_RATINGS = [
   'lotSpaciousness',
@@ -56,6 +57,39 @@ function isOwner(user, userId) {
 
 function averageExpression(field) {
   return { $avg: `$${field}` }
+}
+
+export async function getMyReviews(request, response, next) {
+  try {
+    // Use the signed-in account, rather than a user ID supplied by the browser.
+    const reviews = await Review.find({ user: request.user.id })
+      .sort({ updatedAt: -1 })
+      .select('carparkId overallRating lotSpaciousness entranceExitAccessibility signage pricing comment createdAt updatedAt')
+      .lean()
+
+    return response.json({ success: true, reviews })
+  } catch (error) { return next(error) }
+}
+
+export async function getUserReviews(request, response, next) {
+  try {
+    const userId = request.params.userId
+    validObjectId(userId, 'Profile')
+    const user = await User.findById(userId).select('name createdAt').lean()
+    if (!user) throw httpError('Profile was not found.', 404)
+
+    const reviews = await Review.find({ user: userId })
+      .sort({ updatedAt: -1 })
+      .select('carparkId overallRating lotSpaciousness entranceExitAccessibility signage pricing comment createdAt updatedAt')
+      .lean()
+
+    // Other users can see the display name and reviews, but no account credentials.
+    return response.json({
+      success: true,
+      user: { id: user._id.toString(), name: user.name, createdAt: user.createdAt },
+      reviews,
+    })
+  } catch (error) { return next(error) }
 }
 
 export async function getCarparkReviews(request, response, next) {

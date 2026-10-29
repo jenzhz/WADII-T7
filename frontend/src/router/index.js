@@ -12,6 +12,8 @@ const router = createRouter({
     { path: '/carparks/:id', name: 'carpark-details', component: () => import('@/views/CarparkDetailsView.vue'), props: true },
     { path: '/compare', name: 'compare', component: () => import('@/views/CompareView.vue'), meta: { requiresAuth: true } },
     { path: '/favourites', name: 'favourites', component: () => import('@/views/FavouritesView.vue'), meta: { requiresAuth: true } },
+    { path: '/profile', name: 'profile', component: () => import('@/views/ProfileView.vue'), meta: { requiresAuth: true } },
+    { path: '/profile/:userId', name: 'user-profile', component: () => import('@/views/ProfileView.vue'), meta: { requiresAuth: true } },
     { path: '/community', name: 'community', component: () => import('@/views/CommunityView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/login' },
   ],

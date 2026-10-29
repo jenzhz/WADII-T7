@@ -7,12 +7,16 @@ import {
   deleteReview,
   getCarparkReviews,
   getCommunitySummaries,
+  getMyReviews,
+  getUserReviews,
   updateReply,
   updateReview,
 } from '../controllers/reviewController.js'
 
 const router = Router()
 
+router.get('/mine', requireAuth, getMyReviews)
+router.get('/user/:userId', requireAuth, getUserReviews)
 router.get('/community', getCommunitySummaries)
 router.get('/carpark/:carparkId', getCarparkReviews)
 router.post('/', requireAuth, createReview)

@@ -1,5 +1,15 @@
 import api from './api'
 
+export async function getMyReviews() {
+  const response = await api.get('/reviews/mine')
+  return response.data.reviews
+}
+
+export async function getUserReviews(userId) {
+  const response = await api.get(`/reviews/user/${encodeURIComponent(userId)}`)
+  return response.data
+}
+
 export async function getCommunitySummaries(carparkIds = []) {
   const params = carparkIds.length ? { carparkIds: carparkIds.slice(0, 500).join(',') } : {}
   const { data } = await api.get('/reviews/community', { params })

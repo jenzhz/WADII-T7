@@ -1,4 +1,5 @@
 <script setup>
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import CarparkDetails from '@/components/CarparkDetails.vue'
 import CommunityReviews from '@/components/CommunityReviews.vue'
@@ -11,6 +12,16 @@ defineProps({
 })
 
 const route = useRoute()
+const backLink = computed(() => {
+  if (route.query.from === 'profile') {
+    return route.query.profileUserId
+      ? { name: 'user-profile', params: { userId: route.query.profileUserId } }
+      : { name: 'profile' }
+  }
+  if (route.query.from === 'community') return { name: 'community' }
+  if (route.query.from === 'search') return { name: 'home' }
+  return { name: 'results', query: route.query }
+})
 </script>
 
 <template>
@@ -18,10 +29,10 @@ const route = useRoute()
     <div class="details-inner">
     <div class="mb-3">
       <RouterLink
-        :to="route.query.from === 'community' ? { name: 'community' } : { name: 'results', query: route.query }"
+        :to="backLink"
         class="details-back-link"
       >
-        &larr; {{ route.query.from === 'community' ? 'Back to Community' : 'Back to nearby carparks' }}
+        &larr; {{ route.query.from === 'profile' ? 'Back to profile' : route.query.from === 'community' ? 'Back to Community' : route.query.from === 'search' ? 'Back to search' : 'Back to nearby carparks' }}
       </RouterLink>
     </div>
 

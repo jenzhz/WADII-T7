@@ -215,7 +215,7 @@ onMounted(loadAll)
                 <p>“{{ activity.comment }}”</p>
                 <footer>
                   <div class="activity-author">
-                    <strong>By {{ activity.user?.name || 'Community member' }}</strong>
+                    <strong>By <RouterLink v-if="activity.user?._id" class="profile-link" :to="{ name: 'user-profile', params: { userId: activity.user._id } }">{{ activity.user.name }}</RouterLink><span v-else>Community member</span></strong>
                     <time :datetime="activity.updatedAt">{{ new Date(activity.updatedAt).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' }) }}</time>
                   </div>
                   <RouterLink v-if="carparkForId(activity.carparkId)" class="activity-link" :to="detailsLink(carparkForId(activity.carparkId))">Read review →</RouterLink>
@@ -259,6 +259,7 @@ onMounted(loadAll)
 </template>
 
 <style scoped>
+.profile-link { color: inherit; text-decoration: underline; text-underline-offset: .15em; }
 .community-page { min-height: 100%; padding: 3.5rem 1.5rem 6rem; background: #f0fbf6; background-image: radial-gradient(#bfe9d7 1.1px, transparent 1.1px); background-size: 19px 19px; }
 .community-inner { width: min(100%, 76rem); margin: auto; }
 .intro-row h1 { max-width: none; font-size: clamp(2.5rem, 5vw, 4.3rem); white-space: nowrap; }

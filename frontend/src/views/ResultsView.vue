@@ -196,7 +196,6 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
     </RouterLink>
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mt-4 mb-4">
       <div>
-        <p class="eyebrow">Less searching. Easier parking.</p>
         <h1>Nearby carparks</h1>
         <p class="destination-context text-secondary mt-3 mb-0">Parking near <strong class="destination-name">{{ destination || 'your destination' }}</strong></p>
       </div>
@@ -276,7 +275,7 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
       <p v-if="isDemo && vehicleType !== 'C'" class="small">The sample dataset only contains car lots. Choose Car to preview the cards.</p>
       <button class="btn btn-outline-success" type="button" @click="resetFilters">Reset filters</button>
     </div>
-    <div v-else class="row g-4">
+    <TransitionGroup v-else name="card-list" tag="div" class="row g-4">
       <div v-for="carpark in results" :key="carpark.id" class="col-md-6 col-xl-4">
         <CarparkCard :carpark="carpark" :community-summary="communitySummaries.get(carpark.id)"
           :favourite="carparkFavourites.has(carpark.id)" :favourite-saving="favouriteSavingIds.includes(carpark.id)"
@@ -284,7 +283,7 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
           :selection-disabled="selectedIds.length >= 3" :context-query="contextQuery"
           @toggle-compare="toggleCompare" @toggle-favourite="toggleCarparkFavourite" />
       </div>
-    </div>
+    </TransitionGroup>
     <p class="small text-secondary mt-3">Nearby distance is straight-line distance to your destination, not a walking route. Live walking estimates require a separate routing service. Lot availability may change before arrival.</p>
 
     <aside v-if="selectedIds.length" class="compare-tray mt-4" aria-label="Selected carparks">
