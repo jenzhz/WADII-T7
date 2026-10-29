@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
 import { getCurrentUser } from '@/services/auth'
 import RateSchedule from '@/components/RateSchedule.vue'
+import CarparkMap from '@/components/CarparkMap.vue'
 
 const props = defineProps({
   carparkId: {
@@ -88,6 +89,24 @@ const formattedDistance = computed(() => {
     return `${(meters / 1000).toFixed(2)} km (${meters} m)`
   }
   return `${meters} m`
+})
+
+const routeGeometry = computed(() => carparkDetails.value?.routeGeometry || null)
+
+const selectedCarpark = computed(() => {
+  const details = carparkDetails.value
+  const latitude = Number(details?.coordinates?.latitude)
+  const longitude = Number(details?.coordinates?.longitude)
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return []
+
+  return [{
+    id: details.id || details.carparkId,
+    name: details.carparkName || details.name || props.carparkName,
+    latitude,
+    longitude,
+    availableLots: details.availableLots,
+  }]
 })
 
 async function fetchCarparkDetails() {
@@ -380,6 +399,15 @@ watch(
             </div>
           </div>
         </div>
+
+        <CarparkMap
+          v-if="routeGeometry"
+          :carparks="selectedCarpark"
+          :destination="carparkDetails.destination"
+          :route-geometry="routeGeometry"
+          :show-actions="false"
+          class="mb-4"
+        />
 
         <div
           v-if="carparkDetails.routeInstructions && carparkDetails.routeInstructions.length > 0"

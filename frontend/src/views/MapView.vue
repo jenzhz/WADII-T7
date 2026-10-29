@@ -20,6 +20,7 @@ const fallbackLatitude = Number(savedDestination?.LATITUDE)
 const fallbackLongitude = Number(savedDestination?.LONGITUDE)
 const hasSavedDestination = Number.isFinite(fallbackLatitude) && Number.isFinite(fallbackLongitude)
 const carparks = ref([])
+const routeGeometry = ref(null)
 const loading = ref(false)
 const error = ref('')
 const radius = ref(['500', '1000', '2000', '5000'].includes(String(route.query.radius))
@@ -44,12 +45,13 @@ async function loadCarparks() {
 
   loading.value = true
   error.value = ''
+  routeGeometry.value = null
   try {
     const { data } = await api.get('/carparks/nearby', {
       params: {
         ...destination.value,
         vehicleType,
-        radius: Number(radius.value),
+        radius: Number(radius.value) || 0,
       },
     })
     carparks.value = data.carparks || []
@@ -57,6 +59,28 @@ async function loadCarparks() {
     error.value = requestError.response?.data?.message || 'Unable to load carparks.'
   } finally {
     loading.value = false
+  }
+}
+
+async function showWalkingRoute(carpark) {
+  routeGeometry.value = null
+  error.value = ''
+
+  try {
+    const { data } = await api.get('/carpark-details', {
+      params: {
+        carparkId: carpark.id,
+        lotType: vehicleType,
+        originLat: carpark.latitude,
+        originLng: carpark.longitude,
+        destLat: destination.value.latitude,
+        destLng: destination.value.longitude,
+        destinationName: destination.value.label,
+      },
+    })
+    routeGeometry.value = data.data?.routeGeometry || null
+  } catch (requestError) {
+    error.value = requestError.response?.data?.message || 'Unable to load walking route.'
   }
 }
 
@@ -78,7 +102,7 @@ onMounted(async () => {
         latitude: String(destination.value.latitude),
         longitude: String(destination.value.longitude),
         vehicleType,
-        radius: radius.value,
+        radius: radius.value || 0,
       },
     })
   }
@@ -119,7 +143,14 @@ onMounted(async () => {
 
     <div v-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
     <div v-if="loading" class="map-loading">Loading carparks…</div>
-    <CarparkMap v-else :carparks="carparks" :destination="destination" :context-query="route.query" />
+    <CarparkMap
+      v-else
+      :carparks="carparks"
+      :destination="destination"
+      :context-query="route.query"
+      :route-geometry="routeGeometry"
+      @select-carpark="showWalkingRoute"
+    />
   </section>
 </template>
 
