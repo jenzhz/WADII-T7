@@ -5,6 +5,7 @@ import api from '@/services/api'
 import { getMyReviews, getUserReviews } from '@/services/reviews'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import StarRating from '@/components/StarRating.vue'
+import ProfileReviewMap from '@/components/ProfileReviewMap.vue'
 
 const route = useRoute()
 const isOwnProfile = computed(() => !route.params.userId)
@@ -13,6 +14,8 @@ const reviews = ref([])
 const carparks = ref([])
 const loading = ref(true)
 const error = ref('')
+const loadingLocations = ref(false)
+const locationsError = ref('')
 let profileRequest = 0
 
 const ratingCategories = [
@@ -22,11 +25,32 @@ const ratingCategories = [
   { key: 'pricing', label: 'Pricing' },
 ]
 
+const reviewedLocations = computed(() => {
+  const locations = new Map()
+  for (const review of reviews.value) {
+    const carpark = carparkForReview(review)
+    if (!carpark || !Number.isFinite(carpark.latitude) || !Number.isFinite(carpark.longitude) ||
+      Math.abs(carpark.latitude) > 90 || Math.abs(carpark.longitude) > 180) continue
+
+    // Different vehicle types at the same coordinates share a single pin.
+    const key = `${carpark.latitude}:${carpark.longitude}`
+    if (!locations.has(key)) {
+      locations.set(key, { name: carpark.name || review.carparkId, latitude: carpark.latitude, longitude: carpark.longitude, reviews: [] })
+    }
+    locations.get(key).reviews.push({ overallRating: review.overallRating, detailsLink: detailsLink(review) })
+  }
+  return [...locations.values()]
+})
+
+const unmappedReviewCount = computed(() => reviews.value.length - reviewedLocations.value.reduce((total, location) => total + location.reviews.length, 0))
+
 async function loadProfile() {
   const requestId = ++profileRequest
   const userId = route.params.userId
   loading.value = true
   error.value = ''
+  locationsError.value = ''
+  loadingLocations.value = false
   try {
     let profile
     if (userId) {
@@ -45,14 +69,21 @@ async function loadProfile() {
     if (requestId === profileRequest) loading.value = false
   }
 
-  // Carpark names are optional: reviews still work if live LTA data is unavailable.
   if (requestId === profileRequest && !error.value && reviews.value.length && !carparks.value.length) {
-    try {
-      const response = await api.get('/carparks')
-      if (requestId === profileRequest) carparks.value = response.data.carparks || []
-    } catch {
-      if (requestId === profileRequest) carparks.value = []
-    }
+    await loadCarparkLocations(requestId)
+  }
+}
+
+async function loadCarparkLocations(requestId = profileRequest) {
+  loadingLocations.value = true
+  locationsError.value = ''
+  try {
+    const response = await api.get('/carparks')
+    if (requestId === profileRequest) carparks.value = response.data.carparks || []
+  } catch {
+    if (requestId === profileRequest) locationsError.value = 'Reviewed locations could not be loaded.'
+  } finally {
+    if (requestId === profileRequest) loadingLocations.value = false
   }
 }
 
@@ -106,6 +137,23 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
           <div class="review-count"><strong>{{ reviews.length }}</strong><span>{{ reviews.length === 1 ? 'Review shared' : 'Reviews shared' }}</span></div>
         </section>
 
+        <section class="review-locations mt-4" aria-labelledby="review-locations-heading">
+          <header class="locations-heading">
+            <h2 id="review-locations-heading">Reviewed locations</h2>
+            <span v-if="reviewedLocations.length" class="locations-count">{{ reviewedLocations.length }} {{ reviewedLocations.length === 1 ? 'location' : 'locations' }}</span>
+          </header>
+          <div v-if="loadingLocations" class="locations-state" role="status"><LoadingSpinner /><p>Loading reviewed locations…</p></div>
+          <div v-else-if="locationsError" class="locations-state" role="status">
+            <p>{{ locationsError }}</p>
+            <button class="btn btn-outline-success btn-sm" type="button" @click="loadCarparkLocations()">Try again</button>
+          </div>
+          <template v-else-if="reviewedLocations.length">
+            <ProfileReviewMap :locations="reviewedLocations" />
+            <p v-if="unmappedReviewCount" class="locations-note">{{ unmappedReviewCount }} {{ unmappedReviewCount === 1 ? 'review has' : 'reviews have' }} no matching carpark location. All reviews are listed below.</p>
+          </template>
+          <p v-else class="locations-empty">{{ reviews.length ? 'Location data is unavailable for these carparks. You can still read all reviews below.' : 'Reviewed carparks will appear here once a review is shared.' }}</p>
+        </section>
+
         <section class="mt-4" aria-labelledby="my-reviews-heading">
           <h2 id="my-reviews-heading" class="h4 mb-3">{{ isOwnProfile ? 'Your reviews' : `${user.name}’s reviews` }}</h2>
           <div v-if="!reviews.length" class="state-panel">
@@ -139,7 +187,14 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
 .profile-page { min-height: 100%; padding: 2.5rem 1.5rem 5rem; background-color: #f0fbf6; background-image: radial-gradient(#bfe9d7 1.1px, transparent 1.1px); background-size: 19px 19px; }
 .profile-inner { width: min(100%, 64rem); margin: auto; }
 .profile-page h1 { font-size: clamp(2.5rem, 5vw, 4rem); }
-.account-card, .review-card { padding: 1.5rem; border: 2px solid #174f40; border-radius: 1.25rem; background: white; }
+.account-card, .review-card, .review-locations { padding: 1.5rem; border: 2px solid #174f40; border-radius: 1.25rem; background: white; }
+.locations-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; margin-bottom: 1rem; }
+.locations-heading h2 { margin: 0; font-size: 1.25rem; font-weight: 750; }
+.locations-count { padding: .3rem .65rem; border-radius: 2rem; color: #087a58; background: #e7f8ef; font-size: .8rem; font-weight: 700; }
+.locations-state, .locations-empty { margin: 0; padding: 2rem 1rem; border: 1px dashed #b8cec5; border-radius: 1rem; color: #63716a; background: #f7fcf9; text-align: center; }
+.locations-state :deep(.spinner-border) { color: #087a58 !important; }
+.locations-state p { margin: .75rem 0; }
+.locations-note { margin: .75rem 0 0; color: #63716a; font-size: .8rem; }
 .account-card { display: flex; align-items: center; gap: 1.25rem; }
 .profile-avatar { display: grid; width: 4rem; height: 4rem; flex-shrink: 0; place-items: center; border-radius: 1rem; color: #073f32; background: #2cd790; font-size: 2rem; font-weight: 750; }
 .account-details { min-width: 0; overflow-wrap: anywhere; }

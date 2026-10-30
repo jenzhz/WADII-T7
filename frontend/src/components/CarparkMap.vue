@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import carparkIconUrl from '@/assets/parking-location-svgrepo-com.svg'
+import destinationIconUrl from '@/assets/destination-pin.svg'
 import polyline from '@mapbox/polyline'
 
 const props = defineProps({
@@ -19,6 +20,12 @@ const mapElement = ref(null);
 let map;
 let markerLayer;
 let routeLayer;
+const destinationIcon = L.icon({
+  iconUrl: destinationIconUrl,
+  iconSize: [32, 40],
+  iconAnchor: [16, 40],
+  popupAnchor: [0, -40],
+});
 const carparkIcon = L.icon({
   iconUrl: carparkIconUrl,
   iconSize: [32, 32],
@@ -70,19 +77,12 @@ function renderMarkers() {
 
   // destination marker
   if (props.destination && Number.isFinite(props.destination.latitude) && Number.isFinite(props.destination.longitude)) {
-    L.circleMarker([props.destination.latitude, props.destination.longitude], {
-      radius: 18,
-      stroke: false,
-      fillColor: '#1677ff',
-      fillOpacity: 0.2,
-    }).addTo(markerLayer);
-    L.circleMarker([props.destination.latitude, props.destination.longitude], {
-      radius: 10,
-      color: '#ffffff',
-      fillColor: '#1677ff',
-      fillOpacity: 1,
-      weight: 4,
-    }).bindPopup(`<strong>${escapeHtml(props.destination.label || 'Selected destination')}</strong><br>Search centre`).addTo(markerLayer);
+    L.marker([props.destination.latitude, props.destination.longitude], {
+      icon: destinationIcon,
+      title: props.destination.label || 'Selected destination',
+      alt: 'Destination',
+      zIndexOffset: 1000,
+    }).bindPopup(`<strong>${escapeHtml(props.destination.label || 'Selected destination')}</strong><br>Destination`).addTo(markerLayer);
     bounds.push([props.destination.latitude, props.destination.longitude]);
   }
 
@@ -144,7 +144,7 @@ onBeforeUnmount(() => {
   <div class="map-wrapper">
     <div ref="mapElement" class="map" aria-label="Carpark map"></div>
     <div class="map-legend" aria-label="Map marker legend">
-      <span><i class="legend-dot destination"></i> Destination</span>
+      <span><img :src="destinationIconUrl" class="legend-destination" alt="" /> Destination</span>
       <span><i class="legend-pin available"></i> Lots available</span>
       <span><i class="legend-pin unavailable"></i> Full or unavailable</span>
     </div>
@@ -184,12 +184,9 @@ onBeforeUnmount(() => {
   gap: .35rem;
 }
 
-.legend-dot {
-  width: .8rem;
-  height: .8rem;
-  border-radius: 50%;
-  background: #1677ff;
-  box-shadow: 0 0 0 3px #1677ff33;
+.legend-destination {
+  width: .9rem;
+  height: 1.125rem;
 }
 
 .legend-pin {

@@ -180,9 +180,8 @@ onMounted(loadAll)
 <template>
   <section class="community-page">
     <div class="community-inner">
-      <p class="eyebrow">Community</p>
       <div class="intro-row">
-        <div><h1>Park With Local Knowledge</h1><p>Ratings, honest driver experiences and useful discussions about Singapore carparks.</p></div>
+        <h1>Carpark reviews and discussions</h1>
       </div>
 
       <form class="community-search" @submit.prevent="search">
@@ -204,7 +203,7 @@ onMounted(loadAll)
       <template v-else>
         <section v-if="!showSearchResults" class="community-highlights">
           <div class="highlight-group activity-group">
-            <div class="highlight-heading"><p class="section-kicker">What drivers are saying</p><h2>Recent Community Activity</h2></div>
+            <div class="highlight-heading"><h2>Recent Community Activity</h2></div>
             <div v-if="recentActivity.length" class="highlight-list">
               <article v-for="activity in recentActivity.slice(0, 2)" :key="activity._id" class="activity-card">
                 <h3>{{ carparkName(activity.carparkId) }}</h3>
@@ -262,8 +261,7 @@ onMounted(loadAll)
 .profile-link { color: inherit; text-decoration: underline; text-underline-offset: .15em; }
 .community-page { min-height: 100%; padding: 3.5rem 1.5rem 6rem; background: #f0fbf6; background-image: radial-gradient(#bfe9d7 1.1px, transparent 1.1px); background-size: 19px 19px; }
 .community-inner { width: min(100%, 76rem); margin: auto; }
-.intro-row h1 { max-width: none; font-size: clamp(2.5rem, 5vw, 4.3rem); white-space: nowrap; }
-.intro-row p { max-width: 42rem; margin-top: 1rem; color: #52606d; font-size: 1.05rem; }
+.intro-row h1 { max-width: none; font-size: clamp(2.5rem, 5vw, 4.3rem); }
 .community-search { position: relative; display: flex; align-items: end; gap: .75rem; margin: 2rem 0 3.5rem; padding: 1.25rem; border: 2px solid #174f40; border-radius: 1.25rem; background: white; }
 .search-field { position: relative; flex: 1; }.search-field label, .section-heading label { display: grid; gap: .35rem; font-size: .8rem; font-weight: 750; }
 .search-field input, .section-heading select { width: 100%; min-height: 3.1rem; padding: .7rem 1rem; border: 1.5px solid #174f40; border-radius: .75rem; background: white; }
@@ -276,6 +274,7 @@ onMounted(loadAll)
 .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }.section-heading h2 { margin: 0; font-size: 1.6rem; }.section-heading p { margin: .35rem 0 0; color: #60736b; }.section-kicker { color: #087a58 !important; font-size: .75rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .community-highlights { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 3.5rem; align-items: stretch; }.highlight-group { display: flex; min-width: 0; flex-direction: column; padding: 1.1rem; border: 2px solid #174f40; border-radius: 1.25rem; background: #e8f8f1; }.activity-group { grid-column: 1 / -1; color: #10243a; background: white; }.activity-group .section-kicker { color: #087a58 !important; }.activity-group .highlight-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }.highlight-heading { min-height: 4.75rem; margin-bottom: .8rem; }.highlight-heading h2 { margin: 0; font-size: 1.3rem; }.highlight-list { display: grid; flex: 1; grid-auto-rows: 1fr; gap: .75rem; }.activity-card { display: flex; min-height: 13rem; flex-direction: column; padding: 1.25rem; border: 1.5px solid #4c8b76; border-radius: 1rem; background: #0b4b3d; color: white; }.activity-card:only-child { grid-column: 1 / -1; }.activity-card h3 { margin: 0 0 .65rem; font-size: 1.25rem; font-weight: 800; }.activity-rating { display: flex; align-items: center; gap: .55rem; }.activity-rating :deep(.stars) { font-size: 1.35rem; }.activity-rating > strong { color: #ffd35a; font-size: 1rem; }.activity-card p { margin: 1rem 0; font-size: 1.08rem; line-height: 1.5; }.activity-card footer { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin-top: auto; color: #bce5d5; font-size: .95rem; }.activity-author { display: flex; flex-direction: column; gap: .15rem; }.activity-card footer strong { color: white; }.activity-link { color: #54e6aa; font-weight: 800; text-decoration: none; white-space: nowrap; }.activity-link:hover { color: white; text-decoration: underline; }.highlight-group :deep(.community-card) { min-height: 13rem; height: 100%; padding: 1rem; }.highlight-group :deep(.community-card h3) { margin: .6rem 0 .35rem; }.highlight-group :deep(.mini-breakdown) { margin: .55rem 0; padding: .45rem 0; }.highlight-group :deep(.community-card blockquote) { margin-bottom: .5rem; }.browse-section { margin-top: 3.5rem; }.browse-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin-top: 1rem; }
 .community-highlights.search-active { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.activity-group .highlight-heading { min-height: 0; margin-bottom: 1rem; }
 .community-highlights.search-active .activity-group { grid-column: auto; }
 .community-highlights.search-active .activity-group .highlight-list { grid-template-columns: 1fr; }
 .community-highlights.search-active .highlight-group { background: white; }
@@ -294,5 +293,4 @@ onMounted(loadAll)
 @media (max-width: 1050px) { .community-highlights { grid-template-columns: 1fr; }.highlight-heading { min-height: 0; }.highlight-list { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 950px) { .browse-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 600px) { .community-search { align-items: stretch; flex-direction: column; }.highlight-list, .activity-group .highlight-list, .browse-grid { grid-template-columns: 1fr; }.section-heading { align-items: stretch; flex-direction: column; } }
-@media (max-width: 700px) { .intro-row h1 { white-space: normal; } }
 </style>

@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import api from '@/services/api'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import destinationIconUrl from '@/assets/destination-pin.svg'
 import { formatDistance, normaliseCarparks } from '@/utils/carparkResults'
 import { rankCarparks } from '@/utils/ranking'
 
@@ -131,7 +132,6 @@ onMounted(loadFavourites)
     <div class="favourites-inner">
     <div class="mb-4">
       <h1>Your favourites</h1>
-      <p class="text-secondary mb-0">Return to saved carparks or choose a destination to see its best live parking options.</p>
     </div>
 
     <div v-if="favouritesError" class="alert alert-danger" role="alert">{{ favouritesError }}</div>
@@ -151,10 +151,16 @@ onMounted(loadFavourites)
         <article v-for="favourite in favourites" :key="favourite.id" class="destination-card"
           :class="{ active: activeFavourite?.id === favourite.id }">
           <button class="destination-select text-start" type="button" :aria-pressed="activeFavourite?.id === favourite.id" @click="selectFavourite(favourite)">
-            <strong>{{ favourite.label }}</strong>
-            <span>View nearby carparks →</span>
+            <span class="saved-destination-icon" aria-hidden="true"><img :src="destinationIconUrl" alt="" /></span>
+            <span class="destination-copy">
+              <strong>{{ favourite.label }}</strong>
+              <span class="destination-status">{{ activeFavourite?.id === favourite.id ? 'Showing nearby carparks' : 'Saved destination' }}</span>
+            </span>
+            <span class="destination-action">View nearby carparks <span aria-hidden="true">→</span></span>
           </button>
-          <button class="btn btn-sm btn-link text-danger" type="button" :aria-label="`Remove ${favourite.label} from favourites`" @click="removeFavourite(favourite)">Remove</button>
+          <button class="saved-favourite-remove heart-button" type="button" title="Remove from favourites" :aria-label="`Remove ${favourite.label} from favourites`" @click="removeFavourite(favourite)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.5-9C.9 8.4 2.8 5 6.4 5c2.1 0 3.7 1.2 4.6 2.4C11.9 6.2 13.5 5 15.6 5c3.6 0 5.5 3.4 3.9 7-2 4.4-7.5 9-7.5 9Z" /></svg>
+          </button>
         </article>
       </div>
 
@@ -220,13 +226,15 @@ onMounted(loadFavourites)
           <div>
             <h3>{{ favourite.label }}</h3>
             <p>{{ favourite.carparkId }}</p>
+          </div>
+          <div class="saved-carpark-footer">
+            <RouterLink :to="favouriteDetailsLink(favourite)">View details →</RouterLink>
             <span v-if="liveCarparkData.get(favourite.carparkId)?.hasEvCharger" class="ev-badge">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66l.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8Z" /></svg>
               EV Charging
             </span>
           </div>
-          <RouterLink :to="favouriteDetailsLink(favourite)">View details →</RouterLink>
-          <button type="button" title="Remove from favourites" :aria-label="`Remove ${favourite.label} from favourites`" @click="removeCarparkFavourite(favourite)">
+          <button class="saved-favourite-remove heart-button" type="button" title="Remove from favourites" :aria-label="`Remove ${favourite.label} from favourites`" @click="removeCarparkFavourite(favourite)">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.5-9C.9 8.4 2.8 5 6.4 5c2.1 0 3.7 1.2 4.6 2.4C11.9 6.2 13.5 5 15.6 5c3.6 0 5.5 3.4 3.9 7-2 4.4-7.5 9-7.5 9Z" /></svg>
           </button>
         </article>
@@ -248,24 +256,33 @@ onMounted(loadFavourites)
 .favourites-inner { width: min(100%, 76rem); margin: auto; }
 .favourites-page h1 { font-size: clamp(2.5rem, 5vw, 4rem); }
 .state-panel { text-align: center; padding: 3rem 1rem; border: 2px dashed #9ebfb3; border-radius: 1.3rem; background: rgba(255, 255, 255, .72); }
-.destination-card { display: flex; flex-direction: column; padding: 1.25rem; border: 1.5px solid #b8cec5; border-radius: 1rem; background: #f7fcf9; }
-.destination-card.active { border-color: #174f40; background: #dff7ec; box-shadow: none; }
-.destination-select { flex: 1; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 1.25rem; padding: 0; border: 0; background: transparent; color: inherit; }
-.destination-select strong { font-size: 1rem; overflow-wrap: anywhere; }
-.destination-select span { color: #087a58; font-size: .85rem; font-weight: 750; }
-.destination-card .text-danger { align-self: flex-end; margin-top: .85rem; padding: 0; color: #b62d24 !important; font-size: .8rem; font-weight: 650; }
+.destination-card { position: relative; display: flex; border: 1.5px solid #b8cec5; border-radius: 1rem; background: #f7fcf9; }
+.destination-card.active { border-color: #087a58; background: #dff7ec; box-shadow: inset 0 0 0 1px #087a58; }
+.destination-card:hover { border-color: #087a58; }
+.destination-select { display: grid; width: 100%; min-height: 10rem; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: 1fr auto; align-items: start; gap: 1.5rem .75rem; padding: 1rem 3.25rem 1rem 1rem; border: 0; border-radius: inherit; background: transparent; color: inherit; }
+.saved-destination-icon { display: grid; width: 2.4rem; height: 2.4rem; place-items: center; border-radius: .65rem; background: #ece5ff; }
+.saved-destination-icon img { width: 1.2rem; height: 1.5rem; }
+.destination-copy { display: grid; min-width: 0; gap: .3rem; }
+.destination-copy strong { font-size: .95rem; line-height: 1.4; overflow-wrap: anywhere; }
+.destination-status { color: #63716a; font-size: .75rem; }
+.destination-card.active .destination-status { color: #087a58; }
+.destination-action { grid-column: 1 / -1; align-self: end; color: #087a58; font-size: .82rem; font-weight: 750; }
 .saved-carparks, .saved-destinations { padding: 1.35rem; border: 2px solid #174f40; border-radius: 1.35rem; background: white; }
 .saved-destinations { margin-bottom: 1.5rem; }
 .saved-carpark-grid, .saved-destination-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .85rem; }
 .destination-results { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #d6e5df; }
-.saved-carpark-card { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: 1fr auto; align-items: start; gap: 1rem .75rem; padding: 1rem 3rem 1rem 1rem; border: 1.5px solid #b8cec5; border-radius: 1rem; background: #f7fcf9; }
+.saved-carpark-card { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: 1fr auto; align-items: start; gap: 1.25rem .75rem; padding: 1rem; border: 1.5px solid #b8cec5; border-radius: 1rem; background: #f7fcf9; }
 .saved-carpark-card > div { min-width: 0; }
+.saved-carpark-card > div:not(.saved-carpark-footer) { padding-right: 2rem; }
+.saved-carpark-footer { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .65rem; }
+.saved-carpark-footer .ev-badge { margin-top: 0; white-space: nowrap; }
 .saved-parking-icon { display: grid; width: 2.4rem; height: 2.4rem; place-items: center; border-radius: .65rem; color: #073f32; background: #2cd790; font-weight: 800; }
 .saved-carpark-card h3 { margin: 0; font-size: .95rem; overflow-wrap: anywhere; }
 .saved-carpark-card p { margin: .15rem 0 0; color: #63716a; font-size: .75rem; }
 .saved-carpark-card a { grid-column: 1 / -1; align-self: end; color: #087a58; font-size: .82rem; font-weight: 750; text-decoration: none; }
-.saved-carpark-card button { position: absolute; top: .8rem; right: .8rem; display: grid; width: 2rem; height: 2rem; padding: 0; place-items: center; border: 1px solid #df6a84; border-radius: 50%; color: #c92f54; background: #fff0f4; }
-.saved-carpark-card button svg { width: 1rem; fill: currentColor; stroke: currentColor; }
+.saved-favourite-remove { position: absolute; top: .8rem; right: .8rem; display: grid; width: 2rem; height: 2rem; padding: 0; place-items: center; border: 1px solid #df6a84; border-radius: 50%; color: #c92f54; background: #fff0f4; }
+.saved-favourite-remove:hover { color: #a61f43; border-color: #c92f54; background: #ffe1e9; }
+.saved-favourite-remove svg { width: 1rem; fill: currentColor; stroke: currentColor; }
 .ev-badge { display: inline-flex; width: fit-content; align-items: center; gap: .3rem; margin-top: .45rem; padding: .25rem .55rem; border-radius: 2rem; color: #15803d; background: #dcfce7; font-size: .7rem; font-weight: 750; }
 .ev-badge svg { width: 1rem; height: 1rem; }
 .selection-hint { margin-top: 1.25rem; padding: .65rem 1rem; border: 1.5px solid #087a58; border-radius: .7rem; color: #087a58; background: white; font-size: .85rem; font-weight: 750; text-decoration: none; }
