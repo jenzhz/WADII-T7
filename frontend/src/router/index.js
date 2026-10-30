@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '@/views/HomeView.vue'
-import { clearSession, verifySession } from '@/services/auth'
+import { clearSession, getCurrentUser, verifySession } from '@/services/auth'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -9,21 +9,27 @@ const router = createRouter({
     { path: '/', name: 'home', component: HomeView, meta: { requiresAuth: true } },
     { path: '/results', name: 'results', component: () => import('@/views/ResultsView.vue'), meta: { requiresAuth: true } },
     { path: '/map', name: 'map', component: () => import('@/views/MapView.vue'), meta: { requiresAuth: true } },
-    { path: '/carparks/:id', name: 'carpark-details', component: () => import('@/views/CarparkDetailsView.vue'), props: true, meta: { requiresAuth: true } },
+    { path: '/carparks/:id', name: 'carpark-details', component: () => import('@/views/CarparkDetailsView.vue'), props: true },
     { path: '/compare', name: 'compare', component: () => import('@/views/CompareView.vue'), meta: { requiresAuth: true } },
     { path: '/favourites', name: 'favourites', component: () => import('@/views/FavouritesView.vue'), meta: { requiresAuth: true } },
+    { path: '/profile', name: 'profile', component: () => import('@/views/ProfileView.vue'), meta: { requiresAuth: true } },
+    { path: '/profile/:userId', name: 'user-profile', component: () => import('@/views/ProfileView.vue'), meta: { requiresAuth: true } },
+    { path: '/community', name: 'community', component: () => import('@/views/CommunityView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/login' },
   ],
-  scrollBehavior: () => ({ top: 0 }),
+  scrollBehavior: (to) => to.hash ? { el: to.hash, behavior: 'smooth' } : { top: 0 },
 })
 
 router.beforeEach(async (to) => {
-  let signedIn = false
+  let signedIn = Boolean(getCurrentUser())
 
-  try {
-    signedIn = Boolean(await verifySession())
-  } catch {
-    clearSession()
+  if (to.meta.requiresAuth || to.meta.guestOnly) {
+    try {
+      signedIn = Boolean(await verifySession())
+    } catch {
+      clearSession()
+      signedIn = false
+    }
   }
 
   if (to.meta.requiresAuth && !signedIn) {

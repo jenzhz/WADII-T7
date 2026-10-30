@@ -1,0 +1,117 @@
+/* Shared interaction timings. Keep movement small and feedback immediate. */
+:root {
+  --motion-fast: 120ms;
+  --motion-normal: 180ms;
+  --motion-page: 200ms;
+  --motion-ease: cubic-bezier(.2, .7, .3, 1);
+}
+
+/* Leaflet controls its own marker and map transforms. */
+.app-shell :is(header, main) :is(a, button, input, select, textarea, .btn):not(:where(.leaflet-container *)) {
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-normal) ease,
+    border-color var(--motion-normal) ease,
+    box-shadow var(--motion-normal) ease,
+    opacity var(--motion-fast) ease,
+    transform var(--motion-fast) var(--motion-ease),
+    translate var(--motion-fast) var(--motion-ease),
+    scale var(--motion-fast) var(--motion-ease);
+}
+
+.app-shell :where(a, button, .btn):focus-visible:not(:where(.leaflet-container *)) {
+  outline: 2px solid #087a58;
+  outline-offset: 3px;
+}
+
+.app-shell :where(button:enabled, a.btn, .btn-check + .btn):active:not([aria-disabled="true"]):not(:where(.leaflet-container *)) {
+  scale: .98;
+}
+
+.app-shell :where(button:disabled, [aria-disabled="true"]) {
+  cursor: not-allowed;
+}
+
+/* Apply hover movement to controls and cards that have an action. */
+.app-shell main :is(.carpark-card, .community-card, .favourite-card, .saved-carpark-card, .destination-card, .compare-card, .community-feature) {
+  transition:
+    border-color var(--motion-normal) ease,
+    background-color var(--motion-normal) ease,
+    box-shadow var(--motion-normal) ease,
+    translate var(--motion-normal) var(--motion-ease);
+}
+
+.app-shell :is(.review-card, .reply, .filter-panel, .search-card, .map-controls) {
+  transition: border-color var(--motion-normal) ease, box-shadow var(--motion-normal) ease;
+}
+
+.app-shell :is(.heart-button, .detail-heart-button) svg {
+  transition: fill var(--motion-normal) ease, stroke var(--motion-normal) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .app-shell :is(.carpark-card, .community-card, .favourite-card, .saved-carpark-card, .destination-card, .compare-card, .community-feature):hover {
+    translate: 0 -2px;
+    box-shadow: 0 7px 20px #073f3210;
+  }
+
+  .app-shell :is(.search-button, .auth-submit, .primary-button, .write-button, .submit-button, .explore-button, .selection-hint, .btn-success):hover:not(:disabled):not([aria-disabled="true"]) {
+    box-shadow: 0 4px 12px #073f321c;
+  }
+
+  .app-shell .nav-link:hover:not(.active) {
+    background-color: #e7f5ee;
+  }
+}
+
+/* Fade routes without moving the layout or delaying query/filter changes. */
+.page-enter-active { transition: opacity var(--motion-page) ease; }
+.page-leave-active { transition: opacity var(--motion-fast) ease; }
+.page-enter-from, .page-leave-to { opacity: 0; }
+
+/* Login/register panels and keyed result lists. */
+.panel-enter-active {
+  transition: opacity var(--motion-normal) ease, translate var(--motion-normal) var(--motion-ease);
+}
+.panel-leave-active { transition: opacity var(--motion-fast) ease; }
+.panel-enter-from { opacity: 0; translate: 0 4px; }
+.panel-leave-to { opacity: 0; }
+.card-list-move { transition: transform var(--motion-page) var(--motion-ease); }
+.card-list-enter-active { transition: opacity var(--motion-normal) ease; }
+.card-list-enter-from { opacity: 0; }
+
+/* Short entrances for content inserted after a user action or request. */
+.app-shell :is(.alert, .notice, .state-panel, .favourites-state, .map-loading) {
+  animation: content-appear var(--motion-normal) ease;
+}
+.app-shell :is(.destination-suggestions, .suggestions, .review-form, .reply-form, .compare-tray) {
+  animation: panel-appear var(--motion-normal) var(--motion-ease);
+}
+
+@keyframes content-appear {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes panel-appear {
+  from { opacity: 0; translate: 0 4px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+/* Also cover Bootstrap and the small hover effects in existing components. */
+@media (prefers-reduced-motion: reduce) {
+  .app-shell, .app-shell *, .app-shell *::before, .app-shell *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .app-shell :is(button, a.btn, .btn-check + .btn, .carpark-card, .community-card, .favourite-card, .saved-carpark-card, .destination-card, .compare-card, .community-feature, .panel-enter-from) {
+    translate: none !important;
+    scale: none !important;
+  }
+
+  .app-shell :is(.auth-submit, .community-feature, .heart-button, .star-input button):hover {
+    transform: none !important;
+  }
+}

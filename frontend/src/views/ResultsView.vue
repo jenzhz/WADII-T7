@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import CarparkCard from '@/components/CarparkCard.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import api from '@/services/api'
+import { getCommunitySummaries } from '@/services/reviews'
 import { mockCarparks, mockDestination } from '@/data/mockCarparks'
 import { filterAndSortCarparks, normaliseCarparks } from '@/utils/carparkResults'
 
@@ -15,7 +16,11 @@ const vehicleType = ref('C')
 const maxDistance = ref('1000')
 const sortBy = ref('walk')
 const availableOnly = ref(false)
+const evOnly = ref(false)
 const carparks = ref([])
+const communitySummaries = ref(new Map())
+const carparkFavourites = ref(new Map())
+const favouriteSavingIds = ref([])
 const selectedIds = ref([])
 const loading = ref(false)
 const error = ref('')
@@ -23,12 +28,13 @@ const updatedAt = ref(null)
 const savingFavourite = ref(false)
 const favouriteSaved = ref(false)
 const favouriteMessage = ref('')
+const favouriteMessageIsError = ref(false)
 let latestRequest = 0
 
 const contextQuery = computed(() => ({ ...route.query, destination: destination.value, vehicleType: vehicleType.value }))
 const results = computed(() => filterAndSortCarparks(carparks.value, {
   vehicleType: vehicleType.value, maxDistance: maxDistance.value,
-  availableOnly: availableOnly.value, sortBy: sortBy.value,
+  availableOnly: availableOnly.value, evOnly: evOnly.value, sortBy: sortBy.value,
 }))
 const selectedCarparks = computed(() => carparks.value.filter(carpark => selectedIds.value.includes(carpark.id)))
 const updatedLabel = computed(() => updatedAt.value ? updatedAt.value.toLocaleString('en-SG') : '')
@@ -40,6 +46,7 @@ function toggleCompare(id) {
 function resetFilters() {
   maxDistance.value = '1000'
   availableOnly.value = false
+  evOnly.value = false
   sortBy.value = 'walk'
 }
 
@@ -54,6 +61,7 @@ async function saveDestination() {
   const longitude = Number(route.query.longitude)
   if (!destination.value || !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     favouriteMessage.value = 'This destination cannot be added to favourites.'
+    favouriteMessageIsError.value = true
     return
   }
 
@@ -68,10 +76,55 @@ async function saveDestination() {
     })
     favouriteSaved.value = true
     favouriteMessage.value = 'Destination added to favourites.'
+    favouriteMessageIsError.value = false
   } catch (err) {
     favouriteMessage.value = err.response?.data?.message || 'Unable to add this destination.'
+    favouriteMessageIsError.value = true
   } finally {
     savingFavourite.value = false
+  }
+}
+
+async function loadCarparkFavourites() {
+  try {
+    const { data } = await api.get('/favourites')
+    carparkFavourites.value = new Map(
+      data.favourites.filter(item => item.type === 'carpark' && item.carparkId).map(item => [item.carparkId, item]),
+    )
+  } catch {
+    carparkFavourites.value = new Map()
+  }
+}
+
+async function toggleCarparkFavourite(carpark) {
+  if (favouriteSavingIds.value.includes(carpark.id)) return
+  favouriteSavingIds.value = [...favouriteSavingIds.value, carpark.id]
+  favouriteMessage.value = ''
+  try {
+    const existing = carparkFavourites.value.get(carpark.id)
+    const next = new Map(carparkFavourites.value)
+    if (existing) {
+      await api.delete(`/favourites/${existing.id}`)
+      next.delete(carpark.id)
+      favouriteMessage.value = `${carpark.name} removed from favourites.`
+    } else {
+      const { data } = await api.post('/favourites', {
+        type: 'carpark',
+        label: carpark.name,
+        carparkId: carpark.id,
+        latitude: carpark.latitude,
+        longitude: carpark.longitude,
+      })
+      next.set(carpark.id, data.favourite)
+      favouriteMessage.value = `${carpark.name} added to favourites.`
+    }
+    favouriteMessageIsError.value = false
+    carparkFavourites.value = next
+  } catch (err) {
+    favouriteMessage.value = err.response?.data?.message || 'Unable to update this favourite.'
+    favouriteMessageIsError.value = true
+  } finally {
+    favouriteSavingIds.value = favouriteSavingIds.value.filter(id => id !== carpark.id)
   }
 }
 
@@ -106,6 +159,14 @@ async function loadCarparks() {
       const timestamp = data.fetchedAt ? new Date(data.fetchedAt) : null
       if (timestamp && Number.isFinite(timestamp.getTime())) updatedAt.value = timestamp
     }
+    try {
+      const community = await getCommunitySummaries(carparks.value.map(row => row.id))
+      if (requestId === latestRequest) {
+        communitySummaries.value = new Map(community.summaries.map(item => [item.carparkId, item]))
+      }
+    } catch {
+      if (requestId === latestRequest) communitySummaries.value = new Map()
+    }
   } catch (err) {
     if (requestId !== latestRequest) return
     error.value = err.response || err.request
@@ -123,6 +184,7 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
   favouriteMessage.value = ''
   resetFilters()
   loadCarparks()
+  loadCarparkFavourites()
 }, { immediate: true })
 </script>
 
@@ -134,9 +196,8 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
     </RouterLink>
     <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mt-4 mb-4">
       <div>
-        <p class="eyebrow">Less searching. Easier parking.</p>
         <h1>Nearby carparks</h1>
-        <p class="text-secondary mt-3 mb-0">Parking near <strong class="text-dark">{{ destination || 'your destination' }}</strong></p>
+        <p class="destination-context text-secondary mt-3 mb-0">Parking near <strong class="destination-name">{{ destination || 'your destination' }}</strong></p>
       </div>
       <div class="d-flex flex-wrap gap-2">
         <button class="btn favourite-button" type="button" :disabled="savingFavourite || favouriteSaved" @click="saveDestination">
@@ -146,7 +207,7 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
       </div>
     </div>
 
-    <div v-if="favouriteMessage" class="alert py-2" :class="favouriteSaved ? 'alert-success' : 'alert-danger'" role="status">
+    <div v-if="favouriteMessage" class="alert py-2" :class="favouriteMessageIsError ? 'alert-danger' : 'alert-success'" role="status">
       {{ favouriteMessage }}
     </div>
 
@@ -176,8 +237,21 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
             <option value="walk">Nearest to destination</option><option value="lots">Most available lots</option>
           </select>
         </div>
-        <div class="col-sm-6 col-lg-3 pb-2">
-          <label class="d-flex align-items-center gap-2"><input v-model="availableOnly" type="checkbox" class="form-check-input mt-0" /> Available lots only</label>
+        <div class="col-sm-6 col-lg-3 pb-1 d-grid gap-2">
+          <label class="d-flex align-items-center gap-2">
+            <input v-model="availableOnly" type="checkbox" class="form-check-input mt-0" />
+            <span class="filter-parking-icon" aria-hidden="true">P</span>
+            Available Lots
+          </label>
+          <label class="d-flex align-items-center gap-2">
+            <input v-model="evOnly" type="checkbox" class="form-check-input mt-0" />
+            <span class="filter-leaf-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path fill="currentColor" d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66l.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8Z" />
+              </svg>
+            </span>
+            EV Charging Available
+          </label>
         </div>
       </div>
     </div>
@@ -201,12 +275,15 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
       <p v-if="isDemo && vehicleType !== 'C'" class="small">The sample dataset only contains car lots. Choose Car to preview the cards.</p>
       <button class="btn btn-outline-success" type="button" @click="resetFilters">Reset filters</button>
     </div>
-    <div v-else class="row g-4">
+    <TransitionGroup v-else name="card-list" tag="div" class="row g-4">
       <div v-for="carpark in results" :key="carpark.id" class="col-md-6 col-xl-4">
-        <CarparkCard :carpark="carpark" :selected="selectedIds.includes(carpark.id)"
-          :selection-disabled="selectedIds.length >= 3" :context-query="contextQuery" @toggle-compare="toggleCompare" />
+        <CarparkCard :carpark="carpark" :community-summary="communitySummaries.get(carpark.id)"
+          :favourite="carparkFavourites.has(carpark.id)" :favourite-saving="favouriteSavingIds.includes(carpark.id)"
+          :selected="selectedIds.includes(carpark.id)"
+          :selection-disabled="selectedIds.length >= 3" :context-query="contextQuery"
+          @toggle-compare="toggleCompare" @toggle-favourite="toggleCarparkFavourite" />
       </div>
-    </div>
+    </TransitionGroup>
     <p class="small text-secondary mt-3">Nearby distance is straight-line distance to your destination, not a walking route. Live walking estimates require a separate routing service. Lot availability may change before arrival.</p>
 
     <aside v-if="selectedIds.length" class="compare-tray mt-4" aria-label="Selected carparks">
@@ -233,6 +310,9 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
 .results-page { min-height: 100%; padding: 2.5rem 1.5rem 5rem; background-color: #f0fbf6; background-image: radial-gradient(#bfe9d7 1.1px, transparent 1.1px); background-size: 19px 19px; }
 .results-inner { width: min(100%, 76rem); margin: auto; }
 h1 { font-size: clamp(2rem, 5vw, 3.25rem); }
+.destination-context { font-size: clamp(1.1rem, 2vw, 1.3rem); line-height: 1.35; }
+.destination-context strong { font-weight: 800; }
+.destination-name { color: #087a58; }
 .back-link { display: inline-flex; align-items: center; gap: .35rem; margin-bottom: .25rem; padding: .5rem .2rem; color: #087a58; font-weight: 750; text-decoration: none; }
 .back-link:hover { color: #055c42; text-decoration: underline; }
 .favourite-button { min-width: 10.5rem; border: 1.5px solid #174f40; color: #123d32; background: white; font-weight: 700; }
@@ -242,6 +322,9 @@ h1 { font-size: clamp(2rem, 5vw, 3.25rem); }
 .demo-notice { padding: .85rem 1rem; background: #eef3f8; color: #40576a; border-radius: .65rem; font-size: .85rem; }
 .filter-panel { padding: 1.4rem 1.5rem; border: 2px solid #174f40; border-radius: 1.3rem; background: white; }
 .filter-panel .form-select { min-height: 3.2rem; border: 1.5px solid #174f40; border-radius: .8rem; }
+.filter-parking-icon, .filter-leaf-icon { display: inline-grid; width: 1.55rem; height: 1.55rem; flex: 0 0 1.55rem; place-items: center; border-radius: .45rem; color: #073f32; background: #2cd790; font-size: .82rem; font-weight: 800; }
+.filter-leaf-icon { border-radius: 50%; color: #15803d; background: #dcfce7; }
+.filter-leaf-icon svg { width: 1rem; height: 1rem; }
 .form-label { font-size: .8rem; font-weight: 600; }
 .state-panel { text-align: center; padding: 3rem 1rem; border: 1px dashed #becdc6; border-radius: 1rem; }
 .compare-tray { position: sticky; bottom: 1rem; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem; border: 1px solid #adccbf; border-radius: 1rem; background: #f0faf5; box-shadow: 0 8px 30px #173e3015; }

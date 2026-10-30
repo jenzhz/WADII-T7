@@ -102,47 +102,49 @@ async function submitRegistration() {
           {{ notice.message }}
         </div>
 
-        <form v-if="activeForm === 'login'" @submit.prevent="submitLogin">
-          <div class="field-group">
-            <label for="login-email">Email address</label>
-            <input id="login-email" v-model.trim="loginForm.email" type="email" autocomplete="email"
-              placeholder="you@example.com" required />
-          </div>
-          <div class="field-group">
-            <label for="login-password">Password</label>
-            <input id="login-password" v-model="loginForm.password" type="password" autocomplete="current-password"
-              placeholder="Your password" required />
-          </div>
-          <button class="auth-submit" type="submit" :disabled="isSubmitting">
-            {{ isSubmitting ? 'Logging in…' : 'Login' }}
-          </button>
-        </form>
+        <Transition name="panel" mode="out-in">
+          <form v-if="activeForm === 'login'" key="login" @submit.prevent="submitLogin">
+            <div class="field-group">
+              <label for="login-email">Email address</label>
+              <input id="login-email" v-model.trim="loginForm.email" type="email" autocomplete="email"
+                placeholder="you@example.com" required />
+            </div>
+            <div class="field-group">
+              <label for="login-password">Password</label>
+              <input id="login-password" v-model="loginForm.password" type="password" autocomplete="current-password"
+                placeholder="Your password" required />
+            </div>
+            <button class="auth-submit" type="submit" :disabled="isSubmitting">
+              {{ isSubmitting ? 'Logging in…' : 'Login' }}
+            </button>
+          </form>
 
-        <form v-else @submit.prevent="submitRegistration">
-          <div class="field-group">
-            <label for="register-name">Name</label>
-            <input id="register-name" v-model.trim="registerForm.name" type="text" autocomplete="name"
-              placeholder="Your name" required />
-          </div>
-          <div class="field-group">
-            <label for="register-email">Email address</label>
-            <input id="register-email" v-model.trim="registerForm.email" type="email" autocomplete="email"
-              placeholder="you@example.com" required />
-          </div>
-          <div class="field-group">
-            <label for="register-password">Password</label>
-            <input id="register-password" v-model="registerForm.password" type="password" minlength="8"
-              autocomplete="new-password" placeholder="At least 8 characters" required />
-          </div>
-          <div class="field-group">
-            <label for="confirm-password">Confirm password</label>
-            <input id="confirm-password" v-model="registerForm.confirmPassword" type="password" minlength="8"
-              autocomplete="new-password" placeholder="Repeat your password" required />
-          </div>
-          <button class="auth-submit" type="submit" :disabled="isSubmitting">
-            {{ isSubmitting ? 'Creating account…' : 'Create account' }}
-          </button>
-        </form>
+          <form v-else key="register" @submit.prevent="submitRegistration">
+            <div class="field-group">
+              <label for="register-name">Name</label>
+              <input id="register-name" v-model.trim="registerForm.name" type="text" autocomplete="name"
+                placeholder="Your name" required />
+            </div>
+            <div class="field-group">
+              <label for="register-email">Email address</label>
+              <input id="register-email" v-model.trim="registerForm.email" type="email" autocomplete="email"
+                placeholder="you@example.com" required />
+            </div>
+            <div class="field-group">
+              <label for="register-password">Password</label>
+              <input id="register-password" v-model="registerForm.password" type="password" minlength="8"
+                autocomplete="new-password" placeholder="At least 8 characters" required />
+            </div>
+            <div class="field-group">
+              <label for="confirm-password">Confirm password</label>
+              <input id="confirm-password" v-model="registerForm.confirmPassword" type="password" minlength="8"
+                autocomplete="new-password" placeholder="Repeat your password" required />
+            </div>
+            <button class="auth-submit" type="submit" :disabled="isSubmitting">
+              {{ isSubmitting ? 'Creating account…' : 'Create account' }}
+            </button>
+          </form>
+        </Transition>
       </div>
     </div>
   </section>

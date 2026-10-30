@@ -2,12 +2,20 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { logoutAccount } from '@/services/auth'
+import { getCurrentUser } from '@/services/auth'
 
 const router = useRouter()
 const route = useRoute()
 const searchTarget = ref('/')
 const mapTarget = ref('/map')
 const hasSavedSearch = ref(false)
+const currentUser = ref(getCurrentUser())
+const signedIn = ref(Boolean(currentUser.value))
+
+function refreshAuth() {
+  currentUser.value = getCurrentUser()
+  signedIn.value = Boolean(currentUser.value)
+}
 
 function refreshSearchTarget() {
   const routeLatitude = Number(route.query.latitude)
@@ -66,10 +74,12 @@ onMounted(() => {
   refreshSearchTarget()
   window.addEventListener('search-changed', refreshSearchTarget)
   window.addEventListener('storage', refreshSearchTarget)
+  window.addEventListener('auth-changed', refreshAuth)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('search-changed', refreshSearchTarget)
   window.removeEventListener('storage', refreshSearchTarget)
+  window.removeEventListener('auth-changed', refreshAuth)
 })
 
 watch(() => route.fullPath, refreshSearchTarget)
@@ -85,13 +95,16 @@ watch(() => route.fullPath, refreshSearchTarget)
           <span class="brand-name">Carpark<span>Compare</span>SG</span>
         </RouterLink>
         <div class="navbar-nav flex-row flex-wrap gap-3">
-          <RouterLink class="nav-link" :class="{ active: ['home', 'results'].includes(route.name) }" :to="searchTarget">
+          <RouterLink v-if="signedIn" class="nav-link" :class="{ active: ['home', 'results'].includes(route.name) }" :to="searchTarget">
             {{ hasSavedSearch ? 'Results' : 'Search' }}
           </RouterLink>
-          <RouterLink class="nav-link" :class="{ active: route.name === 'map' }" :to="mapTarget">Map</RouterLink>
-          <RouterLink class="nav-link" :class="{ active: route.name === 'compare' }" to="/compare">Compare</RouterLink>
-          <RouterLink class="nav-link" :class="{ active: route.name === 'favourites' }" to="/favourites">Favourites</RouterLink>
-          <button class="btn btn-outline-success logout-button" type="button" @click="logout">Log out</button>
+          <RouterLink v-if="signedIn" class="nav-link" :class="{ active: route.name === 'map' }" :to="mapTarget">Map</RouterLink>
+          <RouterLink v-if="signedIn" class="nav-link" :class="{ active: route.name === 'compare' }" to="/compare">Compare</RouterLink>
+          <RouterLink v-if="signedIn" class="nav-link" :class="{ active: route.name === 'favourites' }" to="/favourites">Favourites</RouterLink>
+          <RouterLink class="nav-link" :class="{ active: route.name === 'community' }" to="/community">Community</RouterLink>
+          <RouterLink v-if="signedIn" class="nav-link navbar-user" :class="{ active: route.name === 'profile' }" to="/profile" :title="currentUser?.name || ''">Profile</RouterLink>
+          <button v-if="signedIn" class="btn btn-outline-success logout-button" type="button" @click="logout">Log out</button>
+          <RouterLink v-else class="btn btn-outline-success logout-button" to="/login">Log in</RouterLink>
         </div>
       </div>
     </nav>
@@ -145,5 +158,6 @@ header {
 }
 
 .logout-button { border-color: #087a58; border-radius: 2rem; color: #075d45; font-weight: 700; }
+.navbar-user { display: inline-flex; align-items: center; padding-inline: .25rem; color: #10243a; font-weight: 750; }
 </style>
 

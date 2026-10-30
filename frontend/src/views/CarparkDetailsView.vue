@@ -1,6 +1,8 @@
 <script setup>
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import CarparkDetails from '@/components/CarparkDetails.vue'
+import CommunityReviews from '@/components/CommunityReviews.vue'
 
 defineProps({
   id: {
@@ -10,6 +12,16 @@ defineProps({
 })
 
 const route = useRoute()
+const backLink = computed(() => {
+  if (route.query.from === 'profile') {
+    return route.query.profileUserId
+      ? { name: 'user-profile', params: { userId: route.query.profileUserId } }
+      : { name: 'profile' }
+  }
+  if (route.query.from === 'community') return { name: 'community' }
+  if (route.query.from === 'search') return { name: 'home' }
+  return { name: 'results', query: route.query }
+})
 </script>
 
 <template>
@@ -17,10 +29,10 @@ const route = useRoute()
     <div class="details-inner">
     <div class="mb-3">
       <RouterLink
-        :to="{ name: 'results', query: route.query }"
+        :to="backLink"
         class="details-back-link"
       >
-        &larr; Back to nearby carparks
+        &larr; {{ route.query.from === 'profile' ? 'Back to profile' : route.query.from === 'community' ? 'Back to Community' : route.query.from === 'search' ? 'Back to search' : 'Back to nearby carparks' }}
       </RouterLink>
     </div>
 
@@ -29,11 +41,13 @@ const route = useRoute()
       :carpark-name="route.query.name || 'Marina Bay Carpark'"
       :origin-lat="route.query.originLat ?? null"
       :origin-lng="route.query.originLng ?? null"
-      :dest-lat="route.query.destLat || route.query.latitude || 1.293"
-      :dest-lng="route.query.destLng || route.query.longitude || 103.857"
-      :destination-name="route.query.destinationName || route.query.destination || 'Suntec City / Marina Bay'"
+      :dest-lat="route.query.destLat || route.query.latitude || null"
+      :dest-lng="route.query.destLng || route.query.longitude || null"
+      :destination-name="route.query.destinationName || route.query.destination || ''"
       :lot-type="route.query.lotType || route.query.vehicleType || 'C'"
+      :has-ev-charger="route.query.hasEv === '1'"
     />
+    <CommunityReviews :carpark-id="id" :has-ev-charger="route.query.hasEv === '1'" />
     </div>
   </section>
 </template>

@@ -1,7 +1,9 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
+import { getCurrentUser } from '@/services/auth'
 import RateSchedule from '@/components/RateSchedule.vue'
+import CarparkMap from '@/components/CarparkMap.vue'
 
 const props = defineProps({
   carparkId: {
@@ -22,19 +24,23 @@ const props = defineProps({
   },
   destLat: {
     type: [Number, String],
-    default: 1.293,
+    default: null,
   },
   destLng: {
     type: [Number, String],
-    default: 103.857,
+    default: null,
   },
   destinationName: {
     type: String,
-    default: 'Marina Bay / Suntec City',
+    default: '',
   },
   lotType: {
     type: String,
     default: 'C',
+  },
+  hasEvCharger: {
+    type: Boolean,
+    default: false,
   },
 })
 
@@ -42,6 +48,15 @@ const carparkDetails = ref(null)
 const isLoading = ref(false)
 const errorMessage = ref('')
 const lastUpdated = ref('')
+const signedIn = Boolean(getCurrentUser())
+const carparkFavourite = ref(null)
+const favouriteSaving = ref(false)
+const favouriteStatus = ref('')
+const favouriteError = ref(false)
+
+const showEvLeaf = computed(() =>
+  Boolean(carparkDetails.value?.hasEvCharger ?? props.hasEvCharger)
+)
 
 const lotTypeLabel = computed(() => {
   const type = carparkDetails.value?.lotType || props.lotType
@@ -76,6 +91,24 @@ const formattedDistance = computed(() => {
   return `${meters} m`
 })
 
+const routeGeometry = computed(() => carparkDetails.value?.routeGeometry || null)
+
+const selectedCarpark = computed(() => {
+  const details = carparkDetails.value
+  const latitude = Number(details?.coordinates?.latitude)
+  const longitude = Number(details?.coordinates?.longitude)
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return []
+
+  return [{
+    id: details.id || details.carparkId,
+    name: details.carparkName || details.name || props.carparkName,
+    latitude,
+    longitude,
+    availableLots: details.availableLots,
+  }]
+})
+
 async function fetchCarparkDetails() {
   isLoading.value = true
   errorMessage.value = ''
@@ -83,10 +116,13 @@ async function fetchCarparkDetails() {
   try {
     const params = {
       carparkId: props.carparkId,
-      destLat: props.destLat,
-      destLng: props.destLng,
-      destinationName: props.destinationName,
       lotType: props.lotType,
+    }
+
+    if (props.destLat !== null && props.destLat !== '' && props.destLng !== null && props.destLng !== '') {
+      params.destLat = props.destLat
+      params.destLng = props.destLng
+      params.destinationName = props.destinationName
     }
 
     if (props.originLat !== null && props.originLat !== '' && props.originLng !== null && props.originLng !== '') {
@@ -108,8 +144,55 @@ async function fetchCarparkDetails() {
   }
 }
 
+async function loadCarparkFavourite() {
+  if (!signedIn) return
+  try {
+    const { data } = await api.get('/favourites')
+    carparkFavourite.value = data.favourites.find(
+      item => item.type === 'carpark' && item.carparkId === props.carparkId,
+    ) || null
+  } catch {
+    carparkFavourite.value = null
+  }
+}
+
+async function toggleCarparkFavourite() {
+  if (!carparkDetails.value || favouriteSaving.value) return
+  favouriteSaving.value = true
+  favouriteStatus.value = ''
+  favouriteError.value = false
+  try {
+    if (carparkFavourite.value) {
+      await api.delete(`/favourites/${carparkFavourite.value.id}`)
+      carparkFavourite.value = null
+      favouriteStatus.value = 'Removed from favourites.'
+    } else {
+      const latitude = Number(carparkDetails.value.coordinates?.latitude)
+      const longitude = Number(carparkDetails.value.coordinates?.longitude)
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        throw new Error('This carpark does not have valid coordinates.')
+      }
+      const { data } = await api.post('/favourites', {
+        type: 'carpark',
+        label: carparkDetails.value.carparkName || carparkDetails.value.name || props.carparkName,
+        carparkId: props.carparkId,
+        latitude,
+        longitude,
+      })
+      carparkFavourite.value = data.favourite
+      favouriteStatus.value = 'Added to favourites.'
+    }
+  } catch (error) {
+    favouriteError.value = true
+    favouriteStatus.value = error.response?.data?.message || error.message || 'Unable to update favourite.'
+  } finally {
+    favouriteSaving.value = false
+  }
+}
+
 onMounted(() => {
   fetchCarparkDetails()
+  loadCarparkFavourite()
 })
 
 watch(
@@ -123,6 +206,8 @@ watch(
   ],
   () => {
     fetchCarparkDetails()
+    favouriteStatus.value = ''
+    loadCarparkFavourite()
   }
 )
 </script>
@@ -131,8 +216,8 @@ watch(
   <div class="carpark-details-component">
     <!-- Carpark Header Card -->
     <div class="card details-header mb-4">
-      <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div>
+      <div class="card-body details-header-layout">
+        <div class="details-heading">
           <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
             <span class="badge id-badge">
               ID: {{ carparkDetails?.carparkId || carparkId }}
@@ -142,17 +227,41 @@ watch(
             </span>
             <span class="badge type-badge">{{ lotTypeLabel }}</span>
           </div>
-          <h1 class="h2 fw-bold mb-1">
-            {{ carparkDetails?.carparkName || carparkDetails?.name || carparkName }}
+          <h1 class="fw-bold mb-1">
+            <span>{{ carparkDetails?.carparkName || carparkDetails?.name || carparkName }}</span>
+            <span
+              v-if="showEvLeaf"
+              class="ev-leaf-badge"
+              title="EV charging point available"
+              aria-label="EV charging point available"
+            >
+              <svg class="ev-leaf-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66l.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8Z"
+                />
+              </svg>
+            </span>
           </h1>
-          <p class="text-muted mb-0">
+          <p v-if="carparkDetails?.destination" class="text-muted mb-0">
             <span v-if="carparkDetails?.area">Area: {{ carparkDetails.area }} &bull; </span>
             Walking route to
             <strong>{{ carparkDetails?.destination?.name || destinationName }}</strong>
           </p>
         </div>
 
-        <div class="d-flex flex-column align-items-md-end gap-2">
+        <div class="details-actions">
+          <button
+            v-if="signedIn"
+            type="button"
+            class="detail-heart-button"
+            :class="{ active: carparkFavourite }"
+            :disabled="favouriteSaving || !carparkDetails"
+            @click="toggleCarparkFavourite"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.5-9C.9 8.4 2.8 5 6.4 5c2.1 0 3.7 1.2 4.6 2.4C11.9 6.2 13.5 5 15.6 5c3.6 0 5.5 3.4 3.9 7-2 4.4-7.5 9-7.5 9Z" /></svg>
+            {{ favouriteSaving ? 'Saving…' : carparkFavourite ? 'Favourited' : 'Add to favourites' }}
+          </button>
           <button
             type="button"
             class="btn refresh-button"
@@ -168,6 +277,7 @@ watch(
             Refresh Live Data
           </button>
           <small v-if="lastUpdated" class="text-muted">Last updated: {{ lastUpdated }}</small>
+          <small v-if="favouriteStatus" :class="favouriteError ? 'text-danger' : 'text-success'">{{ favouriteStatus }}</small>
         </div>
       </div>
     </div>
@@ -244,8 +354,7 @@ watch(
             <div>
               <p class="text-uppercase text-muted small fw-semibold mb-2">Estimated Walk Time</p>
               <div class="metric-value my-2">
-                {{ carparkDetails.walkingTime ?? '—' }}
-                <span class="fs-4 fw-normal text-muted">mins</span>
+                {{ carparkDetails.walkingTime ?? '—' }} mins
               </div>
             </div>
             <p class="text-muted small mb-0 mt-2">
@@ -267,7 +376,7 @@ watch(
     </div>
 
     <!-- Route Summary & Turn-by-Turn Instructions -->
-    <div v-if="carparkDetails" class="card route-card mt-4">
+    <div v-if="carparkDetails?.destination" class="card route-card mt-4">
       <div class="card-header bg-white py-3 border-0">
         <h2 class="h5 mb-0 fw-semibold">Walking Route Summary</h2>
       </div>
@@ -290,6 +399,15 @@ watch(
             </div>
           </div>
         </div>
+
+        <CarparkMap
+          v-if="routeGeometry"
+          :carparks="selectedCarpark"
+          :destination="carparkDetails.destination"
+          :route-geometry="routeGeometry"
+          :show-actions="false"
+          class="mb-4"
+        />
 
         <div
           v-if="carparkDetails.routeInstructions && carparkDetails.routeInstructions.length > 0"
@@ -327,11 +445,24 @@ watch(
 }
 
 .details-header { padding: .5rem; }
-.details-header h1 { font-size: clamp(1.8rem, 4vw, 3rem); letter-spacing: -.035em; }
+.details-header-layout { display: grid; grid-template-columns: minmax(0, 1fr) 14rem; align-items: start; gap: 2rem; padding: 1.5rem; }
+.details-heading { min-width: 0; }
+.details-header h1 { font-size: clamp(1.65rem, 3.2vw, 2.6rem); line-height: 1.2; letter-spacing: -.035em; overflow-wrap: anywhere; }
+.details-header .ev-leaf-badge { margin-left: .4rem; vertical-align: middle; }
+.details-actions { display: flex; flex-direction: column; align-items: stretch; gap: .65rem; min-width: 0; }
+.details-actions button { width: 100%; justify-content: center; }
+.details-actions small { text-align: right; overflow-wrap: anywhere; }
+.ev-leaf-badge { display: inline-flex; align-items: center; justify-content: center; width: 2.15rem; height: 2.15rem; border-radius: 50%; background: #dcfce7; color: #15803d; flex-shrink: 0; }
+.ev-leaf-icon { width: 1.35rem; height: 1.35rem; }
 .id-badge, .type-badge { color: #10243a; background: #edf2f5; }
 .agency-badge { border: 1px solid #20c980; color: #087a58; background: #eafbf4; }
 .refresh-button { min-height: 3rem; padding-inline: 1.25rem; border: 1.5px solid #174f40; border-radius: .8rem; color: #073f32; background: white; font-weight: 700; }
 .refresh-button:hover { border-color: #0a9e70; background: #eafbf4; }
+.detail-heart-button { display: inline-flex; min-height: 3rem; align-items: center; gap: .5rem; padding: .65rem 1rem; border: 1.5px solid #c0536d; border-radius: .8rem; color: #a92d4c; background: white; font-weight: 750; }
+.detail-heart-button svg { width: 1.25rem; height: 1.25rem; fill: transparent; stroke: currentColor; stroke-width: 1.8; }
+.detail-heart-button:hover:not(:disabled), .detail-heart-button.active { color: #a92d4c; background: #fff0f4; }
+.detail-heart-button.active svg { fill: currentColor; }
+.detail-heart-button:disabled { opacity: .55; }
 
 .metric-card { min-height: 12rem; padding: .25rem; }
 .metric-value { color: #10243a; font-size: clamp(2.6rem, 6vw, 4.25rem); font-weight: 800; line-height: 1; letter-spacing: -.05em; }
@@ -350,8 +481,7 @@ watch(
 .direction-distance { color: #087a58; background: #dff7ec; }
 
 @media (max-width: 767px) {
-  .details-header .card-body { align-items: flex-start !important; }
-  .details-header .align-items-md-end { align-items: flex-start !important; }
+  .details-header-layout { grid-template-columns: 1fr; gap: 1.25rem; padding: 1rem; }
+  .details-actions small { text-align: left; }
 }
 </style>
-

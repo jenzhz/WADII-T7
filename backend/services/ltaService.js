@@ -1,8 +1,12 @@
 import { estimateCost, getRateInfo } from './rateService.js'
 
 const ENDPOINT = 'https://datamall2.mytransport.sg/ltaodataservice/CarParkAvailabilityv2'
+const EV_BATCH_ENDPOINT = 'https://datamall2.mytransport.sg/ltaodataservice/EVCBatch'
+
 let cached = null
 let pending = null
+let evCached = null
+let evPending = null
 
 function serviceError(message, status = 502) {
   return Object.assign(new Error(message), { status })
@@ -13,6 +17,131 @@ export function distanceInMetres(lat1, lng1, lat2, lng2) {
   const a = Math.sin(radians(lat2 - lat1) / 2) ** 2 +
     Math.cos(radians(lat1)) * Math.cos(radians(lat2)) * Math.sin(radians(lng2 - lng1) / 2) ** 2
   return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)))
+}
+
+/**
+ * Parses a single EV location entry from LTA DataMall's EVCBatch dataset.
+ * Note: LTA DataMall's schema spells longitude as "longtitude".
+ */
+function mapEvLocation(loc) {
+  const latitude = Number(loc?.latitude ?? loc?.Latitude ?? loc?.lat)
+  const longitude = Number(loc?.longtitude ?? loc?.longitude ?? loc?.Longitude ?? loc?.lng)
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+      Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+    return null
+  }
+
+  let totalPoints = 0
+  let availablePoints = 0
+  const chargingPoints = Array.isArray(loc?.chargingPoints) ? loc.chargingPoints : []
+
+  for (const cp of chargingPoints) {
+    const plugTypes = Array.isArray(cp?.plugTypes) ? cp.plugTypes : []
+    for (const plug of plugTypes) {
+      const evIds = Array.isArray(plug?.evIds) ? plug.evIds : []
+      for (const ev of evIds) {
+        totalPoints += 1
+        if (ev?.status === 1 || ev?.status === '1' || String(ev?.status).toLowerCase() === 'available') {
+          availablePoints += 1
+        }
+      }
+    }
+  }
+
+  if (totalPoints === 0 && chargingPoints.length > 0) {
+    totalPoints = chargingPoints.length
+    availablePoints = chargingPoints.length
+  }
+
+  return {
+    name: String(loc?.name || '').trim(),
+    address: String(loc?.address || '').trim(),
+    latitude,
+    longitude,
+    totalPoints,
+    availablePoints,
+  }
+}
+
+/**
+ * Fetches EV charging point availability from LTA DataMall (EVCBatch).
+ * Cached for 5 minutes to match LTA's 5-minute batch update interval.
+ */
+export async function getEvChargingLocations() {
+  if (!process.env.LTA_API_KEY?.trim()) return []
+  if (evCached && Date.now() - evCached.time < 5 * 60_000) return evCached.data
+  if (evPending) return evPending
+
+  evPending = (async () => {
+    try {
+      const signal = AbortSignal.timeout(15_000)
+      const metaResponse = await fetch(EV_BATCH_ENDPOINT, {
+        headers: {
+          AccountKey: process.env.LTA_API_KEY.trim(),
+          Accept: 'application/json',
+        },
+        signal,
+      })
+
+      if (!metaResponse.ok) return []
+      const metaData = await metaResponse.json()
+      const downloadLink = metaData?.value?.[0]?.Link || metaData?.Link
+      if (!downloadLink) return []
+
+      const batchResponse = await fetch(downloadLink, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(20_000),
+      })
+      if (!batchResponse.ok) return []
+
+      const batchPayload = await batchResponse.json()
+      const rawLocations = Array.isArray(batchPayload?.evLocationsData)
+        ? batchPayload.evLocationsData
+        : Array.isArray(batchPayload?.value)
+          ? batchPayload.value
+          : Array.isArray(batchPayload)
+            ? batchPayload
+            : []
+
+      const locations = rawLocations
+        .map(mapEvLocation)
+        .filter(loc => loc !== null && loc.availablePoints > 0)
+
+      evCached = { data: locations, time: Date.now() }
+      return locations
+    } catch {
+      return []
+    }
+  })()
+
+  try {
+    return await evPending
+  } finally {
+    evPending = null
+  }
+}
+
+/**
+ * Checks whether a carpark has available EV charging points nearby (within 150m).
+ */
+function attachEvAvailability(carpark, evLocations) {
+  if (carpark.latitude === null || carpark.longitude === null || !Array.isArray(evLocations) || evLocations.length === 0) {
+    return { ...carpark, hasEvCharger: false, evAvailableLots: 0 }
+  }
+
+  let evAvailableLots = 0
+  for (const evLoc of evLocations) {
+    const dist = distanceInMetres(carpark.latitude, carpark.longitude, evLoc.latitude, evLoc.longitude)
+    if (dist <= 150) {
+      evAvailableLots += evLoc.availablePoints
+    }
+  }
+
+  return {
+    ...carpark,
+    hasEvCharger: evAvailableLots > 0,
+    evAvailableLots,
+  }
 }
 
 export function mapCarpark(row) {
@@ -32,6 +161,8 @@ export function mapCarpark(row) {
     availableLots: Number.isInteger(lots) && lots >= 0 ? lots : null,
     lotType: row.LotType,
     agency: row.Agency,
+    hasEvCharger: false,
+    evAvailableLots: 0,
     walkingDistance: null,
     walkingTime: null,
   }
@@ -49,6 +180,7 @@ export async function getCarparkAvailability(carparkId, lotType = 'C') {
   } else {
     if (!pending) {
       pending = (async () => {
+        const evPromise = getEvChargingLocations()
         const rows = []
         const signal = AbortSignal.timeout(25_000)
         for (let skip = 0; skip < 50_000; skip += 500) {
@@ -69,8 +201,14 @@ export async function getCarparkAvailability(carparkId, lotType = 'C') {
           if (!Array.isArray(data.value)) throw serviceError('LTA returned an unexpected response format.')
           rows.push(...data.value)
           if (data.value.length < 500) {
-            const unique = new Map(rows.filter(row => row?.CarParkID != null && ['C', 'Y', 'H'].includes(row.LotType))
-              .map(mapCarpark).map(row => [row.id, row]))
+            const evLocations = await evPromise
+            const unique = new Map(
+              rows
+                .filter(row => row?.CarParkID != null && ['C', 'Y', 'H'].includes(row.LotType))
+                .map(mapCarpark)
+                .map(carpark => attachEvAvailability(carpark, evLocations))
+                .map(row => [row.id, row])
+            )
             const result = { carparks: [...unique.values()], fetchedAt: new Date().toISOString(), source: 'LTA DataMall' }
             cached = { data: result, time: Date.now() }
             return result

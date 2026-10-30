@@ -9,11 +9,14 @@ import RateSchedule from '@/components/RateSchedule.vue'
 const route = useRoute()
 const router = useRouter()
 const COMPARISON_KEY = 'lastComparison'
-const duration = ref(120) // minutes, used for the estimated cost
-const durationOptions = [60, 120, 180, 240]
-// Compare always ranks by one combined score: 50% available lots + 50% distance.
-// Stars show the same score, so more stars always means a higher rank.
-const RANKING_WEIGHT = { lots: 0.5, walk: 0.5, mode: 'balanced' }
+const duration = ref(120)
+const durationOptions = [60, 120, 180, 240, 360, 480]
+const preference = ref('walk')
+const weightOptions = {
+  walk: { lots: 0.3, walk: 0.7, mode: 'walk', label: 'Closer' },
+  lots: { lots: 0.7, walk: 0.3, mode: 'lots', label: 'Available lots' },
+  price: { lots: 0, walk: 0, mode: 'price', label: 'Cheapest' },
+}
 
 const selectedIds = computed(() => {
   const ids = route.query.ids
@@ -39,8 +42,8 @@ async function loadCarparks() {
         latitude: route.query.latitude,
         longitude: route.query.longitude,
         vehicleType: route.query.vehicleType || 'C',
-        radius: 5000,
-        duration: duration.value
+        radius: 1000,
+        duration: duration.value,
       }
     })
     const allCarparks = normaliseCarparks(response.data.carparks)
@@ -70,9 +73,9 @@ onMounted(async () => {
 // Re-fetch so the backend recalculates the estimated cost for the new duration
 watch(duration, loadCarparks)
 
-const ranked = computed(() => rankCarparks(selectedCarparks.value, RANKING_WEIGHT))
+const ranked = computed(() => rankCarparks(selectedCarparks.value, weightOptions[preference.value]))
 const  columnClass = computed(()=>{
-  const count = ranked.value.length
+  const count = Math.max(1, ranked.value.length)
   return 'col-md-' + Math.floor(12 / count)
 })
 // Most available lots among the selected carparks (null values are skipped)
@@ -114,16 +117,12 @@ function formatCost(carpark) {
   return carpark.rate?.costLabel ?? '—'
 }
 
-function toStar(score) {
-  const filled = Math.round(score * 5)
-  return '★'.repeat(filled) + '☆'.repeat(5 - filled)
-}
 </script>
 
 <template>
   <section class="compare-page">
     <div class="compare-inner">
-    <h1 class="h2 mb-3">Compare Carparks</h1>
+    <h1 class="compare-title mb-4">Compare carparks</h1>
 
     <!-- Loading / error / not enough carparks -->
     <p v-if="loading" class="text-secondary">Loading carparks…</p>
@@ -134,17 +133,29 @@ function toStar(score) {
     </div>
 
     <template v-else>
-      <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
-        <label class="text-secondary mb-0" for="duration">How long will you park?</label>
-        <select id="duration" v-model.number="duration" class="form-select w-auto">
-          <option v-for="minutes in durationOptions" :key="minutes" :value="minutes">
-            {{ minutes / 60 }} hour{{ minutes > 60 ? 's' : '' }}
-          </option>
-        </select>
+      <div class="compare-controls">
+        <div class="duration-field">
+          <label class="control-label" for="duration">Parking duration</label>
+          <select id="duration" v-model.number="duration" class="form-select">
+            <option v-for="minutes in durationOptions" :key="minutes" :value="minutes">
+              {{ minutes / 60 }} hour{{ minutes > 60 ? 's' : '' }}
+            </option>
+          </select>
+        </div>
+
+        <fieldset class="preference-field">
+          <legend>What matters most?</legend>
+          <div class="preference-options">
+            <template v-for="(value, key) in weightOptions" :key="key">
+              <input :id="`pref-${key}`" v-model="preference" type="radio" name="comparison-preference" class="btn-check" :value="key">
+              <label class="btn preference-button" :for="`pref-${key}`">{{ value.label }}</label>
+            </template>
+          </div>
+        </fieldset>
       </div>
 
       <!-- 2 cards: 6/12 each, 3 cards: 4/12 each; stacked on phones -->
-      <div class="row g-3">
+      <TransitionGroup name="card-list" tag="div" class="row g-3">
         <div v-for="carpark in ranked" :key="carpark.id" class="col-12" :class="columnClass">
           <div class="card h-100 compare-card" :class="{ recommended: carpark.rank === 1 }">
             <div class="card-body d-flex flex-column">
@@ -154,9 +165,13 @@ function toStar(score) {
               </div>
 
               <h2 class="h6 fw-bold mb-1">{{ carpark.name }}</h2>
-              <p class="stars mb-3" :aria-label="Math.round(carpark.score * 5) + ' out of 5 stars'">
-                {{ toStar(carpark.score) }}
-              </p>
+              <span v-if="carpark.hasEvCharger" class="ev-charging-badge mb-3"
+                title="EV charging point available" aria-label="EV charging point available">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="currentColor" d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66l.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8Z" />
+                </svg>
+                EV Charging
+              </span>
 
               <dl class="metrics mb-3">
                 <div :class="{ best: bestLots != null && carpark.availableLots === bestLots }">
@@ -187,13 +202,13 @@ function toStar(score) {
               </div>
 
               <RouterLink class="details-link mt-auto"
-                :to="{ name: 'carpark-details', params: { id: carpark.id }, query: route.query }">
+                :to="{ name: 'carpark-details', params: { id: carpark.id }, query: { ...route.query, ...(carpark.hasEvCharger ? { hasEv: '1' } : {}) } }">
                 View details →
               </RouterLink>
             </div>
           </div>
         </div>
-      </div>
+      </TransitionGroup>
 
       <aside class="compare-notes mt-4" aria-label="About these figures">
         <h2 class="notes-title">About these figures</h2>
@@ -202,6 +217,7 @@ function toStar(score) {
           <li><strong>HDB carparks:</strong> estimated cost based on HDB short-term parking charges, starting from now.</li>
           <li><strong>Malls &amp; buildings:</strong> published rates from LTA OneMotoring, shown under <em>Parking rates</em>. Each mall sets its own pricing rules, so the estimated cost shows <em>Varies</em> instead of a single amount.</li>
           <li><strong>URA carparks:</strong> rate information is currently not available (shown as —).</li>
+          <li><strong>Cheapest:</strong> calculated estimated costs are ordered lowest first; <em>Varies</em> and unavailable prices appear afterwards.</li>
         </ul>
       </aside>
     </template>
@@ -218,6 +234,20 @@ function toStar(score) {
   background-size: 19px 19px;
 }
 .compare-inner { width: min(100%, 76rem); margin: auto; }
+.compare-title { font-size: clamp(2.5rem, 5vw, 4rem); }
+.compare-controls { display: grid; grid-template-columns: minmax(12rem, .65fr) minmax(0, 1.35fr); align-items: end; gap: 2rem; margin-bottom: 1.5rem; padding: 1.4rem 1.5rem; border: 2px solid #174f40; border-radius: 1.25rem; background: white; }
+.control-label, .preference-field legend { display: block; float: none; width: auto; margin: 0 0 .5rem; color: #173e30; font-size: .85rem; font-weight: 750; }
+.duration-field .form-select { min-height: 3.25rem; padding: .75rem 2.5rem .75rem 1rem; border: 1.5px solid #174f40; border-radius: .8rem; color: #173e30; }
+.preference-field { min-width: 0; margin: 0; padding: 0; border: 0; }
+.preference-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .25rem; padding: .25rem; border: 1.5px solid #174f40; border-radius: .85rem; background: #edf3f1; }
+.preference-button { display: flex; min-height: 2.7rem; align-items: center; justify-content: center; margin: 0; padding: .6rem .75rem; border: 0; border-radius: .6rem; color: #52665d; background: transparent; font-size: .95rem; font-weight: 700; }
+.preference-button:hover { color: #073f32; background: #e0eee7; }
+.btn-check:checked + .preference-button { color: #06271f; background: #2cd790; box-shadow: 0 2px 6px #073f3212; }
+.btn-check:focus-visible + .preference-button { outline: 2px solid #087a58; outline-offset: 2px; }
+@media (max-width: 700px) {
+  .compare-controls { grid-template-columns: 1fr; gap: 1.25rem; padding: 1.25rem; }
+  .preference-button { padding-inline: .35rem; font-size: .85rem; }
+}
 .compare-card {
   border-radius: 1rem;
   border: 1px solid #d9e3df;
@@ -225,11 +255,8 @@ function toStar(score) {
 .compare-card.recommended {
   border: 2px solid #0f5c4d;
 }
-.stars {
-  color: #f5a623;
-  letter-spacing: 2px;
-  font-size: 1.1rem;
-}
+.ev-charging-badge { display: inline-flex; align-self: flex-start; align-items: center; gap: .3rem; padding: .3rem .6rem; border-radius: 2rem; color: #15803d; background: #dcfce7; font-size: .72rem; font-weight: 750; white-space: nowrap; }
+.ev-charging-badge svg { width: 1rem; height: 1rem; }
 .metrics div {
   display: flex;
   justify-content: space-between;
