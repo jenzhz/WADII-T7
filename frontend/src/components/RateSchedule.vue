@@ -15,8 +15,8 @@ const sections = computed(() => {
   if (!schedule) return []
   // URA, or a mall without data: one box with a message
   if (schedule.message) return [{ label: null, lines: [schedule.message], isMessage: true }]
-  // HDB: same rates every day
-  if (schedule.allDays) return [{ label: 'All days', lines: schedule.allDays }]
+  // HDB: Monday to Saturday / Sunday
+  if (schedule.sections) return schedule.sections
   return [
     { label: 'Weekdays', lines: schedule.weekday },
     { label: 'Saturday', lines: schedule.saturday },

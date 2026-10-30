@@ -70,8 +70,38 @@ onMounted(async () => {
   await loadCarparks()
 })
 
-// Re-fetch so the backend recalculates the estimated cost for the new duration
-watch(duration, loadCarparks)
+// When the duration changes, only update the estimated costs.
+// The cards stay on screen (no "Loading carparks…"); only the cost line shows "Updating…".
+const updatingCost = ref(false)
+let costRequestId = 0
+
+async function refreshCosts() {
+  if (selectedIds.value.length === 0) return
+  const requestId = ++costRequestId
+  updatingCost.value = true
+  try {
+    const response = await api.get('/carparks/nearby', {
+      params: {
+        latitude: route.query.latitude,
+        longitude: route.query.longitude,
+        vehicleType: route.query.vehicleType || 'C',
+        radius: 1000,
+        duration: duration.value,
+      }
+    })
+    if (requestId !== costRequestId) return // a newer duration was chosen; ignore this answer
+    const costs = new Map(response.data.carparks.map(carpark => [String(carpark.id), carpark.estimatedCost ?? null]))
+    selectedCarparks.value = selectedCarparks.value.map(carpark =>
+      costs.has(carpark.id) ? { ...carpark, estimatedCost: costs.get(carpark.id) } : carpark
+    )
+  } catch {
+    // Keep the old costs on screen if the update fails
+  } finally {
+    if (requestId === costRequestId) updatingCost.value = false
+  }
+}
+
+watch(duration, refreshCosts)
 
 const ranked = computed(() => rankCarparks(selectedCarparks.value, weightOptions[preference.value]))
 const  columnClass = computed(()=>{
@@ -174,7 +204,7 @@ function formatCost(carpark) {
               </span>
 
               <dl class="metrics mb-3">
-                <div :class="{ best: bestLots != null && carpark.availableLots === bestLots }">
+                <div :class="{ best: bestLots != null && bestLots > 0 && carpark.availableLots === bestLots, full: carpark.availableLots === 0 }">
                   <dt>Available lots</dt>
                   <dd>{{ carpark.availableLots ?? '—' }}</dd>
                 </div>
@@ -192,7 +222,7 @@ function formatCost(carpark) {
                 </div>
                 <div :class="{ best: bestCost != null && carpark.estimatedCost === bestCost }">
                   <dt>Est. cost ({{ duration / 60 }}h)</dt>
-                  <dd>{{ formatCost(carpark) }}</dd>
+                  <dd :class="{ 'cost-updating': updatingCost }">{{ updatingCost ? 'Updating…' : formatCost(carpark) }}</dd>
                 </div>
               </dl>
 
@@ -216,7 +246,7 @@ function formatCost(carpark) {
           <li><span class="notes-swatch" aria-hidden="true"></span>Highlighted values are the best in each category.</li>
           <li><strong>HDB carparks:</strong> estimated cost based on HDB short-term parking charges, starting from now.</li>
           <li><strong>Malls &amp; buildings:</strong> published rates from LTA OneMotoring, shown under <em>Parking rates</em>. Each mall sets its own pricing rules, so the estimated cost shows <em>Varies</em> instead of a single amount.</li>
-          <li><strong>URA carparks:</strong> rate information is currently not available (shown as —).</li>
+          <li><strong>URA carparks:</strong> rates marked <em>sample data</em> are placeholders for testing, not official URA rates.</li>
           <li><strong>Cheapest:</strong> calculated estimated costs are ordered lowest first; <em>Varies</em> and unavailable prices appear afterwards.</li>
         </ul>
       </aside>
@@ -237,6 +267,7 @@ function formatCost(carpark) {
 .compare-title { font-size: clamp(2.5rem, 5vw, 4rem); }
 .compare-controls { display: grid; grid-template-columns: minmax(12rem, .65fr) minmax(0, 1.35fr); align-items: end; gap: 2rem; margin-bottom: 1.5rem; padding: 1.4rem 1.5rem; border: 2px solid #174f40; border-radius: 1.25rem; background: white; }
 .control-label, .preference-field legend { display: block; float: none; width: auto; margin: 0 0 .5rem; color: #173e30; font-size: .85rem; font-weight: 750; }
+.cost-updating { color: #63716a; font-weight: 500; }
 .duration-field .form-select { min-height: 3.25rem; padding: .75rem 2.5rem .75rem 1rem; border: 1.5px solid #174f40; border-radius: .8rem; color: #173e30; }
 .preference-field { min-width: 0; margin: 0; padding: 0; border: 0; }
 .preference-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .25rem; padding: .25rem; border: 1.5px solid #174f40; border-radius: .85rem; background: #edf3f1; }
@@ -274,6 +305,11 @@ function formatCost(carpark) {
 .metrics .best {
   background: #e6f4f0;
   color: #0f5c4d;
+}
+/* 0 available lots: red, never green */
+.metrics .full {
+  background: #fce5e5;
+  color: #9f3030;
 }
 .compare-notes {
   padding: 1rem 1.25rem;

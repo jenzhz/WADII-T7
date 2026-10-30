@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { looseNames, normaliseName } from '../utils/rateNames.js'
+import { estimateMockUraCost, getMockUraRateInfo, isMockUraEnabled } from './mockUraRates.js'
 
 // HDB short-term parking rules used to estimate charges.
 // Source: https://www.hdb.gov.sg/parking/other-parking-matters/shortterm-parking/shortterm-parking-charges
@@ -82,6 +83,8 @@ function hdbCarRate(carparkId, date) {
 // costLabel: what to show instead of an estimated cost when it cannot be calculated.
 export function getRateInfo(carpark, date = new Date()) {
   if (carpark.agency === 'URA') {
+    // Sample rates until the real URA API is connected (see mockUraRates.js)
+    if (isMockUraEnabled()) return getMockUraRateInfo(carpark, date)
     return {
       per30Min: null,
       perEntry: null,
@@ -118,6 +121,7 @@ export function getRateInfo(carpark, date = new Date()) {
 // separately so a stay that crosses 5pm uses the correct rate for each block.
 // Returns null when the carpark is not HDB (rate unknown).
 export function estimateCost(carpark, minutes, start = new Date()) {
+  if (carpark.agency === 'URA' && isMockUraEnabled()) return estimateMockUraCost(carpark, minutes, start)
   if (carpark.agency !== 'HDB') return null
   if (carpark.lotType === 'Y') return MOTORCYCLE_PER_ENTRY
   const blocks = Math.ceil(minutes / 30)
@@ -132,19 +136,26 @@ export function estimateCost(carpark, minutes, start = new Date()) {
 // HDB rate for "now" plus the full rate schedule shown on compare/details pages.
 const HDB_SOURCE = 'HDB short-term parking charges'
 
-// HDB rates are the same every day (except Central Area peak hours), so the
-// schedule is one "All days" list instead of Weekdays / Saturday / Sunday & PH.
+// HDB schedule is shown as "Monday to Saturday" and "Sunday".
+// Sunday is not in "7:00am to 5:00pm, Monday to Saturday", so it falls under
+// "Other hours" in the HDB table. Public holidays are not mentioned, so not shown.
 function hdbSchedule(carpark) {
-  const half = value => `$${value.toFixed(2)} per half-hour`
+  const half = value => `$${value.toFixed(2)} / 30 min`
+  const sameEveryDay = lines => ({ sections: [
+    { label: 'Monday to Saturday', lines },
+    { label: 'Sunday', lines },
+  ] })
   if (carpark.lotType === 'Y') {
-    return { allDays: [`$${MOTORCYCLE_PER_ENTRY.toFixed(2)} per lot for the whole day (7am-10.30pm) or whole night (10.30pm-7am)`] }
+    return sameEveryDay([`$${MOTORCYCLE_PER_ENTRY.toFixed(2)} / entry (whole day 7am-10.30pm, or whole night 10.30pm-7am)`])
   }
-  if (carpark.lotType === 'H') return { allDays: [half(HEAVY_VEHICLE_RATE)] }
+  if (carpark.lotType === 'H') return sameEveryDay([half(HEAVY_VEHICLE_RATE)])
   if (isCentralArea(carpark.carparkId)) {
-    // Wording follows the HDB table: "(7:00am to 5:00pm, Monday to Saturday)" and "(Other hours)"
-    return { allDays: [`7:00am to 5:00pm, Monday to Saturday: ${half(CENTRAL_PEAK_RATE)}`, `Other hours: ${half(CAR_RATE)}`] }
+    return { sections: [
+      { label: 'Monday to Saturday', lines: [`7:00am to 5:00pm: ${half(CENTRAL_PEAK_RATE)}`, `Other hours: ${half(CAR_RATE)}`] },
+      { label: 'Sunday', lines: [`All day: ${half(CAR_RATE)}`] },
+    ] }
   }
-  return { allDays: [half(CAR_RATE)] }
+  return sameEveryDay([half(CAR_RATE)])
 }
 
 function getHdbRateInfo(carpark, date) {

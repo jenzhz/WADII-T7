@@ -63,7 +63,11 @@ export function rankCarparks(carparks, weight) {
   const priceValue = carpark => carpark.estimatedCost == null
     ? Number.POSITIVE_INFINITY
     : Number(carpark.estimatedCost)
+  // A full carpark (0 available lots) is never ranked above one that has lots, in any mode
+  const isFull = carpark => carpark.availableLots != null && Number(carpark.availableLots) === 0
   scored.sort((a, b) => {
+    const fullFirst = Number(isFull(a)) - Number(isFull(b))
+    if (fullFirst !== 0) return fullFirst
     if (weight.mode === 'price') {
       return priceValue(a) - priceValue(b) || walkValue(a) - walkValue(b) || lotsValue(b) - lotsValue(a) || a.name.localeCompare(b.name)
     }
