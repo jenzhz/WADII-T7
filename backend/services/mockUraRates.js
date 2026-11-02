@@ -2,14 +2,14 @@
 // Simple rates for every URA carpark, deliberately different from HDB
 // ($0.60 / $1.20), so URA and HDB carparks rank differently on the Compare page.
 // Replace with the real URA Data Service API (Car Park List and Rates) later.
-// Turn off with USE_MOCK_URA_RATES=false in backend/.env.
+// Turned on with USE_MOCK_URA_RATES=true in backend/.env.
 
 export const MOCK_URA_SOURCE = 'Sample data – not official URA rates'
 const MOCK_URA_WEEKDAY_RATE = 0.8 // dollars per 30 minutes, Monday to Saturday
 const MOCK_URA_SUNDAY_RATE = 0.5 // dollars per 30 minutes, Sunday
 
 export function isMockUraEnabled() {
-  return String(process.env.USE_MOCK_URA_RATES ?? 'true').toLowerCase() !== 'false'
+  return process.env.USE_MOCK_URA_RATES === 'true'
 }
 
 // Singapore is always UTC+8, so this works on any server timezone
