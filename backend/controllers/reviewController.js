@@ -8,6 +8,7 @@ const OPTIONAL_RATINGS = [
   'signage',
   'pricing',
 ]
+const PARKING_DIFFICULTIES = ['beginner-friendly', 'moderate', 'challenging']
 
 function httpError(message, status) {
   return Object.assign(new Error(message), { status })
@@ -38,9 +39,18 @@ function cleanRating(value, name, required = false) {
   return rating
 }
 
+function cleanParkingDifficulty(value) {
+  const difficulty = String(value || '').trim()
+  if (!PARKING_DIFFICULTIES.includes(difficulty)) {
+    throw httpError('Parking difficulty must be Beginner Friendly, Moderate, or Challenging.', 400)
+  }
+  return difficulty
+}
+
 function reviewPayload(body) {
   const payload = {
     overallRating: cleanRating(body.overallRating, 'Overall rating', true),
+    parkingDifficulty: cleanParkingDifficulty(body.parkingDifficulty),
     comment: cleanComment(body.comment),
   }
   for (const field of OPTIONAL_RATINGS) payload[field] = cleanRating(body[field], field)
@@ -59,12 +69,36 @@ function averageExpression(field) {
   return { $avg: `$${field}` }
 }
 
+function difficultyScoreExpression() {
+  return {
+    $switch: {
+      branches: [
+        { case: { $eq: ['$parkingDifficulty', 'beginner-friendly'] }, then: 1 },
+        { case: { $eq: ['$parkingDifficulty', 'moderate'] }, then: 2 },
+        { case: { $eq: ['$parkingDifficulty', 'challenging'] }, then: 3 },
+      ],
+      default: null,
+    },
+  }
+}
+
+function addDifficultyConsensus(summary) {
+  if (!summary) return summary
+  const { parkingDifficultyScore, ...rest } = summary
+  if (parkingDifficultyScore == null) return rest
+  const score = Number(parkingDifficultyScore)
+  const parkingDifficulty = score < 1.5
+    ? 'beginner-friendly'
+    : score < 2.5 ? 'moderate' : 'challenging'
+  return { ...rest, parkingDifficulty }
+}
+
 export async function getMyReviews(request, response, next) {
   try {
     // Use the signed-in account, rather than a user ID supplied by the browser.
     const reviews = await Review.find({ user: request.user.id })
       .sort({ updatedAt: -1 })
-      .select('carparkId overallRating lotSpaciousness entranceExitAccessibility signage pricing comment createdAt updatedAt')
+      .select('carparkId overallRating lotSpaciousness entranceExitAccessibility signage pricing parkingDifficulty comment createdAt updatedAt')
       .lean()
 
     return response.json({ success: true, reviews })
@@ -80,7 +114,7 @@ export async function getUserReviews(request, response, next) {
 
     const reviews = await Review.find({ user: userId })
       .sort({ updatedAt: -1 })
-      .select('carparkId overallRating lotSpaciousness entranceExitAccessibility signage pricing comment createdAt updatedAt')
+      .select('carparkId overallRating lotSpaciousness entranceExitAccessibility signage pricing parkingDifficulty comment createdAt updatedAt')
       .lean()
 
     // Other users can see the display name and reviews, but no account credentials.
@@ -111,13 +145,15 @@ export async function getCarparkReviews(request, response, next) {
         entranceExitAccessibility: averageExpression('entranceExitAccessibility'),
         signage: averageExpression('signage'),
         pricing: averageExpression('pricing'),
+        parkingDifficultyScore: { $avg: difficultyScoreExpression() },
+        parkingDifficultyReviewCount: { $sum: { $cond: [{ $in: ['$parkingDifficulty', PARKING_DIFFICULTIES] }, 1, 0] } },
       } },
     ])
 
     return response.json({
       success: true,
       reviews,
-      summary: summaryRows[0] || { carparkId, reviewCount: 0, overallRating: null },
+      summary: addDifficultyConsensus(summaryRows[0]) || { carparkId, reviewCount: 0, overallRating: null },
     })
   } catch (error) { return next(error) }
 }
@@ -221,14 +257,16 @@ export async function getCommunitySummaries(request, response, next) {
         entranceExitAccessibility: averageExpression('entranceExitAccessibility'),
         signage: averageExpression('signage'),
         pricing: averageExpression('pricing'),
+        parkingDifficultyScore: { $avg: difficultyScoreExpression() },
+        parkingDifficultyReviewCount: { $sum: { $cond: [{ $in: ['$parkingDifficulty', PARKING_DIFFICULTIES] }, 1, 0] } },
         lastReviewedAt: { $max: '$updatedAt' },
         latestComment: { $first: '$comment' },
         latestRating: { $first: '$overallRating' },
       } },
-      { $project: { _id: 0, carparkId: '$_id', reviewCount: 1, overallRating: 1, lotSpaciousness: 1, entranceExitAccessibility: 1, signage: 1, pricing: 1, lastReviewedAt: 1, latestComment: 1, latestRating: 1 } },
+      { $project: { _id: 0, carparkId: '$_id', reviewCount: 1, overallRating: 1, lotSpaciousness: 1, entranceExitAccessibility: 1, signage: 1, pricing: 1, parkingDifficultyScore: 1, parkingDifficultyReviewCount: 1, lastReviewedAt: 1, latestComment: 1, latestRating: 1 } },
     ])
     const recentActivity = await Review.find(match).sort({ updatedAt: -1 }).limit(8)
       .select('carparkId overallRating comment updatedAt user').populate('user', 'name').lean()
-    return response.json({ success: true, summaries, recentActivity })
+    return response.json({ success: true, summaries: summaries.map(addDifficultyConsensus), recentActivity })
   } catch (error) { return next(error) }
 }

@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { formatDistance } from '@/utils/carparkResults'
+import { parkingDifficultyDetails } from '@/utils/parkingDifficulty'
 
 const props = defineProps({
   carpark: { type: Object, required: true },
@@ -19,6 +20,7 @@ const availability = computed(() => {
   if (lots <= 20) return { label: 'Limited lots', className: 'limited' }
   return { label: 'Lots available', className: 'available' }
 })
+const parkingDifficulty = computed(() => parkingDifficultyDetails(props.communitySummary?.parkingDifficulty))
 const detailsQuery = computed(() => ({
   ...props.contextQuery,
   name: props.carpark.name,
@@ -61,6 +63,12 @@ const detailsQuery = computed(() => ({
         </svg>
         <span>EV Charging</span>
       </span>
+      <span
+        v-if="parkingDifficulty"
+        class="difficulty-badge"
+        :class="`difficulty-${parkingDifficulty.value}`"
+        :title="`Community-rated parking difficulty: ${parkingDifficulty.label}`"
+      >{{ parkingDifficulty.label }}</span>
     </h3>
     <p class="text-secondary small mb-4">{{ carpark.agency || 'Carpark' }} · {{ carpark.carparkId || carpark.id }} · {{ { C: 'Car', Y: 'Motorcycle', H: 'Heavy vehicle' }[carpark.lotType] || carpark.lotType }}</p>
     <div class="community-preview" :class="{ empty: !communitySummary?.reviewCount }">
@@ -99,6 +107,10 @@ const detailsQuery = computed(() => ({
 .parking-icon { display: grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: .75rem; background: #2cd790; color: #073f32; font-weight: 800; font-size: 1.4rem; }
 .ev-leaf-badge { display: inline-flex; min-height: 1.65rem; padding: .25rem .55rem; align-items: center; justify-content: center; gap: .3rem; border-radius: 2rem; background: #dcfce7; color: #15803d; flex-shrink: 0; font-size: .7rem; font-weight: 750; white-space: nowrap; }
 .ev-leaf-icon { width: 1.05rem; height: 1.05rem; }
+.difficulty-badge { display: inline-flex; min-height: 1.65rem; padding: .25rem .55rem; align-items: center; border-radius: 2rem; flex-shrink: 0; font-size: .7rem; font-weight: 750; white-space: nowrap; }
+.difficulty-beginner-friendly { color: #087a58; background: #dff7ec; }
+.difficulty-moderate { color: #805b00; background: #fff0bf; }
+.difficulty-challenging { color: #a02f2f; background: #fde2e2; }
 .availability { padding: .35rem .65rem; border-radius: 2rem; font-size: .72rem; font-weight: 700; }
 .card-actions { display: flex; align-items: center; gap: .5rem; }
 .heart-button { display: grid; width: 2.2rem; height: 2.2rem; padding: 0; place-items: center; border: 1.5px solid #b7c9c2; border-radius: 50%; color: #60736b; background: white; transition: color .15s, border-color .15s, background .15s, transform .15s; }

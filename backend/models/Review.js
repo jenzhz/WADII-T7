@@ -25,6 +25,11 @@ const reviewSchema = new mongoose.Schema(
     entranceExitAccessibility: ratingField(),
     signage: ratingField(),
     pricing: ratingField(),
+    parkingDifficulty: {
+      type: String,
+      enum: ['beginner-friendly', 'moderate', 'challenging'],
+      default: null,
+    },
     comment: { type: String, required: true, trim: true, minlength: 1, maxlength: 2000 },
     replies: { type: [replySchema], default: [] },
   },
