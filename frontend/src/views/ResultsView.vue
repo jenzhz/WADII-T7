@@ -109,11 +109,8 @@ async function toggleCarparkFavourite(carpark) {
       favouriteMessage.value = `${carpark.name} removed from favourites.`
     } else {
       const { data } = await api.post('/favourites', {
-        type: 'carpark',
-        label: carpark.name,
-        carparkId: carpark.id,
-        latitude: carpark.latitude,
-        longitude: carpark.longitude,
+        type: 'carpark', label: carpark.name, carparkId: carpark.id,
+        latitude: carpark.latitude, longitude: carpark.longitude,
       })
       next.set(carpark.id, data.favourite)
       favouriteMessage.value = `${carpark.name} added to favourites.`

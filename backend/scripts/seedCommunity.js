@@ -35,6 +35,12 @@ const SMU_CONNEXION = {
   longitude: 103.8493312274774,
 }
 
+const BEDOK_MALL = {
+  name: 'Bedok Mall',
+  latitude: 1.324736327847299,
+  longitude: 103.929256259998,
+}
+
 const DEMO_CARPARKS = [
   {
     id: 'URA:A0011:C',
@@ -132,6 +138,142 @@ const DEMO_CARPARKS = [
       ['beginner-friendly', 'Easy entry, clear markings, and a simple drive out. The main consideration is avoiding the busiest arrival times.'],
     ],
   },
+  {
+    id: 'LTA:65:C',
+    name: 'Bedok Mall',
+    reviews: [
+      ['beginner-friendly', 'The entrance signs were clear and I could follow the arrows to an available level without second-guessing the route.'],
+      ['moderate', 'Parking was manageable, but the queue and surrounding traffic made the approach feel busier during the evening peak.'],
+      ['beginner-friendly', 'I found the lot markings clear and had enough room to reverse my sedan in with one smooth attempt.'],
+      ['moderate', 'The internal route is organised, although I slowed down at the bends and watched for cars leaving their rows.'],
+      ['moderate', 'Convenient for the mall and transport interchange. The main challenge was staying in the correct lane on the approach.'],
+      ['beginner-friendly', 'A comfortable first visit outside peak hours. The signs towards the exit were easy to spot after parking.'],
+      ['challenging', 'It felt pressured when several cars were waiting behind me. New drivers may prefer a quieter weekday period.'],
+      ['moderate', 'The lot itself was fine for an SUV, but I needed to take the turns slowly and set up early.'],
+      ['beginner-friendly', 'Good lighting and visible directional arrows helped me plan where to turn and where to stop.'],
+      ['moderate', 'Generally straightforward once inside. Give yourself extra time when traffic around Bedok Central is heavy.'],
+    ],
+  },
+  {
+    id: 'HDB:B8B:C',
+    name: 'Block 222 Bedok North Drive',
+    reviews: [
+      ['beginner-friendly', 'The parking area was easy to understand and I could see several available lots before choosing one.'],
+      ['beginner-friendly', 'Straightforward for my first visit. I had enough space to line up and reverse without feeling rushed.'],
+      ['moderate', 'The route was simple, though I paid attention to pedestrians and vehicles crossing between the nearby blocks.'],
+      ['beginner-friendly', 'Clear lot markings and a predictable exit made this a comfortable option for a newer driver.'],
+      ['beginner-friendly', 'I drove a family car and still had reasonable space on both sides after parking.'],
+      ['moderate', 'It became busier around meal time, so I needed more patience while waiting for another car to leave.'],
+      ['beginner-friendly', 'No complicated ramps or confusing internal route during my visit. Parking felt calm and manageable.'],
+      ['beginner-friendly', 'The approach from Bedok North Drive was easy to follow after checking the map once.'],
+      ['moderate', 'A few occupied rows made circulation tighter, but taking the corners slowly was enough.'],
+      ['beginner-friendly', 'A useful alternative to mall parking. I found a lot quickly and left without difficulty.'],
+    ],
+  },
+  {
+    id: 'HDB:B8:C',
+    name: 'Blocks 201/203 Bedok North Street 1',
+    reviews: [
+      ['moderate', 'The carpark is close to Bedok Mall, but I needed to watch the lane flow carefully near the block entrances.'],
+      ['challenging', 'Several parked vehicles reduced my view around a corner, so I moved slowly and prepared to stop.'],
+      ['moderate', 'The lot size was acceptable for a sedan. Reversing took one correction when neighbouring cars were present.'],
+      ['beginner-friendly', 'Quiet in the morning and easy to navigate. I had enough time to choose a comfortable lot.'],
+      ['challenging', 'The busy period made the available turning room feel limited, especially with cars waiting for spaces.'],
+      ['moderate', 'The route made sense after the first turn, though the entrance was less obvious than the mall carpark.'],
+      ['beginner-friendly', 'I used a compact car and found the parking straightforward outside the peak period.'],
+      ['moderate', 'Good location for nearby shops. Stay alert for pedestrians and take extra care when leaving the row.'],
+      ['challenging', 'Larger vehicles may need more than one adjustment when the surrounding lots are fully occupied.'],
+      ['moderate', 'Overall manageable with patience. The difficulty changes a lot depending on traffic and how full the rows are.'],
+    ],
+  },
+  {
+    id: 'LTA:43:C',
+    name: 'Westgate',
+    reviews: [
+      ['beginner-friendly', 'Clear entrance signs and bright lighting made the route easy to follow on my first visit.'],
+      ['moderate', 'The parking levels were organised, but I slowed down around the bends in my larger vehicle.'],
+      ['moderate', 'Finding a lot was straightforward; the busier part was joining the entrance queue during dinner time.'],
+      ['beginner-friendly', 'The lot markings were clear and I had enough space to reverse without multiple corrections.'],
+      ['moderate', 'A convenient option for Jurong East, though peak-hour traffic requires patience on the approach.'],
+    ],
+  },
+  {
+    id: 'LTA:1:C',
+    name: 'Suntec City',
+    reviews: [
+      ['beginner-friendly', 'The directional signs helped me reach the correct parking zone without getting lost.'],
+      ['moderate', 'The carpark is large, so remember your zone and take time to read the signs before each turn.'],
+      ['beginner-friendly', 'Comfortable lot size for my sedan and a predictable route towards the exit.'],
+      ['beginner-friendly', 'Good lighting and clear arrows made this manageable for a newer driver outside peak hours.'],
+      ['moderate', 'Parking was easy, but event traffic made circulation slower and required more attention.'],
+    ],
+  },
+  {
+    id: 'HDB:J60M:C',
+    name: '505A Jurong West Street 52',
+    reviews: [
+      ['beginner-friendly', 'The layout was simple and I could see the available lots clearly before choosing one.'],
+      ['beginner-friendly', 'I had enough room to line up and reverse my family car without feeling rushed.'],
+      ['moderate', 'The route was manageable, though I watched carefully for pedestrians moving between the blocks.'],
+      ['beginner-friendly', 'Clear markings and a straightforward exit made this a comfortable first visit.'],
+      ['beginner-friendly', 'Quiet outside the evening peak and easy to navigate at a slow speed.'],
+    ],
+  },
+  {
+    id: 'LTA:59:C',
+    name: 'CQ @ Clarke Quay',
+    reviews: [
+      ['moderate', 'The entrance was easy to locate, but the internal turns needed care in my SUV.'],
+      ['challenging', 'Busy nightlife traffic added pressure and I needed an extra correction beside a pillar.'],
+      ['beginner-friendly', 'A weekday afternoon was calm and I found the signs and lot markings straightforward.'],
+      ['moderate', 'Manageable when taken slowly, especially around the bends and vehicles leaving their rows.'],
+      ['challenging', 'The busier period felt tight for a new driver, so I would recommend visiting off peak first.'],
+    ],
+  },
+  {
+    id: 'LTA:52:C',
+    name: 'Orchard Gateway',
+    reviews: [
+      ['challenging', 'The ramp and tighter turns required careful steering in my larger vehicle.'],
+      ['moderate', 'Clear signs helped, but I still took the bends slowly and set up early for each turn.'],
+      ['challenging', 'Traffic behind me made the narrow-feeling sections stressful on my first visit.'],
+      ['moderate', 'Parking was manageable in a compact car, though the approach needs attention.'],
+      ['challenging', 'I needed more than one adjustment beside an occupied neighbouring lot. Better for confident drivers.'],
+    ],
+  },
+  {
+    id: 'URA:A0021:C',
+    name: 'Amoy Street Off Street',
+    reviews: [
+      ['beginner-friendly', 'The open layout made it easy to judge the lot and position my sedan.'],
+      ['moderate', 'The final approach needed attention because surrounding city traffic was moving quickly.'],
+      ['moderate', 'Parking itself was manageable, but occupied neighbouring lots reduced the turning room.'],
+      ['beginner-friendly', 'Straightforward during the morning, with visible markings and no complicated internal route.'],
+      ['challenging', 'It felt crowded at lunchtime and I had limited space to pause while selecting a lot.'],
+    ],
+  },
+  {
+    id: 'HDB:ACB:C',
+    name: 'Albert Centre Basement Car Park',
+    reviews: [
+      ['moderate', 'The basement route was understandable, but I slowed down around the pillars and corners.'],
+      ['challenging', 'A larger vehicle needs careful positioning because the occupied rows can feel tight.'],
+      ['beginner-friendly', 'Quiet in the morning and easy enough when I could choose a more open lot.'],
+      ['moderate', 'Following the arrows helped, although reversing required one extra adjustment.'],
+      ['challenging', 'Peak-period circulation reduced the available turning room and may pressure a new driver.'],
+    ],
+  },
+  {
+    id: 'HDB:Y16:C',
+    name: 'Blocks 238/242 Yishun Ring Road',
+    reviews: [
+      ['beginner-friendly', 'The parking area was easy to understand and the lot markings were visible.'],
+      ['beginner-friendly', 'I found enough space to reverse comfortably and leave room beside both doors.'],
+      ['moderate', 'The main consideration was watching for pedestrians and vehicles crossing near the blocks.'],
+      ['beginner-friendly', 'A calm and straightforward visit outside peak hours, suitable for a newer driver.'],
+      ['moderate', 'Some occupied rows felt busier, but slowing down made the turns manageable.'],
+    ],
+  },
 ]
 
 function emailFor(name) {
@@ -142,7 +284,7 @@ function selectCarparks(rows) {
   const byId = new Map(rows.map(row => [row.id, row]))
   const missing = DEMO_CARPARKS.filter(config => !byId.has(config.id))
   if (missing.length) {
-    throw new Error(`SMU demo carparks missing from live data: ${missing.map(item => item.id).join(', ')}`)
+    throw new Error(`Demo carparks missing from live data: ${missing.map(item => item.id).join(', ')}`)
   }
   return DEMO_CARPARKS.map(config => ({ ...byId.get(config.id), name: config.name }))
 }
@@ -171,6 +313,7 @@ function buildReviewDocuments(users, carparks) {
   const now = Date.now()
   const overallRatings = [5, 4, 4, 3, 5, 4, 3, 4, 5, 4]
   const pricingRatings = [3, 3, 4, 3, 2, 4, 3, 4, 3, 3]
+  const helpfulVoteCounts = [3, 1, 2, 0, 4, 1, 2, 3, 1, 2]
   const difficultyRatings = {
     'beginner-friendly': { lotSpaciousness: 5, entranceExitAccessibility: 5 },
     moderate: { lotSpaciousness: 4, entranceExitAccessibility: 4 },
@@ -182,6 +325,8 @@ function buildReviewDocuments(users, carparks) {
     return config.reviews.map(([parkingDifficulty, comment], reviewIndex) => {
       const sequence = carparkIndex * 10 + reviewIndex
       const user = users[(carparkIndex + reviewIndex) % users.length]
+      const helpfulBy = Array.from({ length: helpfulVoteCounts[reviewIndex] }, (_, offset) =>
+        users[(carparkIndex + reviewIndex + offset + 1) % users.length]._id)
       const base = difficultyRatings[parkingDifficulty]
       const createdAt = new Date(now - (sequence * 13 + 4) * 60 * 60 * 1000)
       const updatedAt = new Date(createdAt.getTime() + (sequence % 4) * 35 * 60 * 1000)
@@ -206,6 +351,7 @@ function buildReviewDocuments(users, carparks) {
         signage: Math.max(1, Math.min(5, overallRatings[reviewIndex] + (reviewIndex % 3 === 0 ? -1 : 0))),
         pricing: pricingRatings[reviewIndex],
         parkingDifficulty,
+        helpfulBy,
         comment,
         replies,
         createdAt,
@@ -227,7 +373,7 @@ async function main() {
 
   const availability = await getCarparkAvailability()
   const carparks = selectCarparks(availability.carparks)
-  if (carparks.length !== DEMO_CARPARKS.length) throw new Error('Not all SMU demo carparks were returned by LTA DataMall.')
+  if (carparks.length !== DEMO_CARPARKS.length) throw new Error('Not all demo carparks were returned by LTA DataMall.')
 
   const removed = await clearDemoData()
   const users = await seedUsers()
@@ -235,7 +381,7 @@ async function main() {
   await Review.collection.insertMany(documents)
 
   console.log(`Refreshed demo data (removed ${removed.reviews} reviews and ${removed.users} users).`)
-  console.log(`Created ${users.length} users and ${documents.length} reviews across ${carparks.length} carparks near ${SMU_CONNEXION.name}.`)
+  console.log(`Created ${users.length} users and ${documents.length} reviews across ${carparks.length} demo carparks, including areas near ${SMU_CONNEXION.name} and ${BEDOK_MALL.name}.`)
   console.log(`Demo login password: ${DEMO_PASSWORD}`)
   console.log('Demo users:')
   for (const user of users) console.log(`- ${user.name}: ${user.email}`)

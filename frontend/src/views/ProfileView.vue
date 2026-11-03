@@ -11,6 +11,7 @@ const route = useRoute()
 const isOwnProfile = computed(() => !route.params.userId)
 const user = ref(null)
 const reviews = ref([])
+const contributor = ref({ helpedDrivers: 0, points: 0, level: 'New Contributor' })
 const carparks = ref([])
 const loading = ref(true)
 const error = ref('')
@@ -56,13 +57,14 @@ async function loadProfile() {
     if (userId) {
       profile = await getUserReviews(userId)
     } else {
-      const response = await api.get('/users/profile')
-      profile = { user: response.data.user, reviews: await getMyReviews() }
+      const [response, reviewProfile] = await Promise.all([api.get('/users/profile'), getMyReviews()])
+      profile = { user: response.data.user, reviews: reviewProfile.reviews, contributor: reviewProfile.contributor }
     }
     // Ignore an old response if another profile has been opened in the meantime.
     if (requestId !== profileRequest) return
     user.value = profile.user
     reviews.value = profile.reviews
+    contributor.value = profile.contributor || { helpedDrivers: 0, points: 0, level: 'New Contributor' }
   } catch (requestError) {
     if (requestId === profileRequest) error.value = requestError.response?.data?.message || 'Unable to load this profile. Please try again.'
   } finally {
@@ -134,7 +136,10 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
             <p v-if="isOwnProfile">{{ user.email }}</p>
             <small v-if="user.createdAt">Member since {{ formattedDate(user.createdAt) }}</small>
           </div>
-          <div class="review-count"><strong>{{ reviews.length }}</strong><span>{{ reviews.length === 1 ? 'Review shared' : 'Reviews shared' }}</span></div>
+          <div class="profile-stats">
+            <div class="contributor-score"><span>{{ contributor.level }}</span><strong>{{ contributor.points }} pts</strong><small>Helped {{ contributor.helpedDrivers }} {{ contributor.helpedDrivers === 1 ? 'driver' : 'drivers' }}</small></div>
+            <div class="review-count"><strong>{{ reviews.length }}</strong><span>{{ reviews.length === 1 ? 'Review shared' : 'Reviews shared' }}</span></div>
+          </div>
         </section>
 
         <section class="review-locations mt-4" aria-labelledby="review-locations-heading">
@@ -169,6 +174,7 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
               </header>
               <p class="review-date">{{ review.updatedAt !== review.createdAt ? 'Updated' : 'Posted' }} {{ formattedDate(review.updatedAt) }}</p>
               <p class="review-comment">{{ review.comment }}</p>
+              <p class="review-helpful"><span aria-hidden="true">👍</span> Helped {{ review.helpfulCount || 0 }} {{ review.helpfulCount === 1 ? 'driver' : 'drivers' }}</p>
               <dl class="review-ratings">
                 <template v-for="category in ratingCategories" :key="category.key">
                   <div v-if="review[category.key] != null"><dt>{{ category.label }}</dt><dd>{{ review[category.key] }}/5</dd></div>
@@ -204,6 +210,7 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
 .review-count { display: grid; gap: .25rem; margin-left: auto; text-align: center; white-space: nowrap; color: #087a58; }
 .review-count strong { font-size: 2rem; line-height: 1; }
 .review-count span { font-size: .85rem; }
+.profile-stats { display: flex; align-items: stretch; gap: .75rem; margin-left: auto; }.profile-stats .review-count { min-width: 7rem; margin: 0; padding: .75rem; justify-content: center; border-left: 1px solid #d6e5df; }.contributor-score { display: grid; min-width: 11rem; align-content: center; padding: .65rem .85rem; border-radius: .85rem; color: #073f32; background: #e7f8f0; text-align: center; }.contributor-score span { color: #087a58; font-size: .72rem; font-weight: 850; text-transform: uppercase; }.contributor-score strong { margin: .1rem 0; font-size: 1.35rem; }.contributor-score small { color: #52665d; }
 .state-panel { padding: 3rem 1rem; border: 2px dashed #9ebfb3; border-radius: 1.25rem; background: #ffffffbb; text-align: center; }
 .review-list { display: grid; gap: 1rem; }
 .review-card header, .review-score { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
@@ -211,6 +218,7 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
 .review-score { flex-shrink: 0; }
 .review-date { margin: .5rem 0 1rem; font-size: .85rem; }
 .review-comment { white-space: pre-wrap; overflow-wrap: anywhere; }
+.review-helpful { display: inline-flex; align-items: center; gap: .35rem; margin: 0 0 .8rem; padding: .35rem .6rem; border-radius: 2rem; color: #087a58; background: #e7f8f0; font-size: .78rem; font-weight: 750; }
 .review-ratings { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0; }
 .review-ratings div { display: flex; gap: .4rem; padding: .3rem .6rem; border-radius: 2rem; background: #edf3f1; font-size: .8rem; }
 .review-ratings dt { font-weight: 400; }
@@ -219,7 +227,7 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
 .review-link:hover { text-decoration: underline; }
 @media (max-width: 575px) {
   .account-card { flex-wrap: wrap; }
-  .review-count { width: 100%; margin: 0; padding-top: 1rem; border-top: 1px solid #d6e5df; }
+  .profile-stats { width: 100%; margin: 0; flex-direction: column; }.profile-stats .review-count { width: 100%; border-top: 1px solid #d6e5df; border-left: 0; }.contributor-score { width: 100%; }
   .review-card header { align-items: flex-start; flex-direction: column; }
 }
 </style>
