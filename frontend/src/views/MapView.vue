@@ -1,11 +1,31 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import CarparkMap from '@/components/CarparkMap.vue'
+import FilterDropdown from '@/components/FilterDropdown.vue'
 
 const route = useRoute()
 const router = useRouter()
+
+// Where the map was opened from decides what it shows (only Compare gets a "Back" link;
+// Results is always one click away in the navbar):
+//   from=results -> the same carparks as the Results page (radius, EV filter)
+//   from=compare -> only the compared carparks, numbered by their Compare rank (ids are in rank order)
+const fromCompare = route.query.from === 'compare'
+const compareIds = String(route.query.ids || '').split(',').filter(Boolean)
+const isCompareMode = fromCompare && compareIds.length > 0
+const evOnly = route.query.ev === '1'
+
+const backLink = computed(() => {
+  const { from: _from, ...query } = route.query
+  if (isCompareMode) {
+    const { radius: _radius, ev: _ev, ...compareQuery } = query
+    return { label: 'Back to compare', to: { name: 'compare', query: compareQuery } }
+  }
+  // Results keeps the same distance and EV filter (radius, ev)
+  return { label: 'Back to results', to: { name: 'results', query } }
+})
 let savedSearch = null
 try {
   savedSearch = JSON.parse(localStorage.getItem('carparkcompare.search'))
@@ -23,7 +43,14 @@ const carparks = ref([])
 const routeGeometry = ref(null)
 const loading = ref(false)
 const error = ref('')
-const radius = ref(['500', '1000', '2000', '5000'].includes(String(route.query.radius))
+const radiusOptions = [
+  { value: '250', label: 'Within 250 m' },
+  { value: '500', label: 'Within 500 m' },
+  { value: '1000', label: 'Within 1 km' },
+  { value: '2000', label: 'Within 2 km' },
+  { value: '5000', label: 'Within 5 km' },
+]
+const radius = ref(['250', '500', '1000', '2000', '5000'].includes(String(route.query.radius))
   ? String(route.query.radius)
   : '1000')
 const initialVehicleType = route.query.vehicleType || savedSearch?.vehicleType
@@ -51,10 +78,19 @@ async function loadCarparks() {
       params: {
         ...destination.value,
         vehicleType,
-        radius: Number(radius.value) || 0,
+        // Compare mode: the compared carparks can be up to 5 km away (same as Results)
+        radius: isCompareMode ? 5000 : Number(radius.value) || 0,
       },
     })
-    carparks.value = data.carparks || []
+    const list = data.carparks || []
+    if (isCompareMode) {
+      const byId = new Map(list.map(carpark => [String(carpark.id), carpark]))
+      carparks.value = compareIds
+        .map((id, index) => byId.has(id) ? { ...byId.get(id), rank: index + 1 } : null)
+        .filter(Boolean)
+    } else {
+      carparks.value = evOnly ? list.filter(carpark => carpark.hasEvCharger === true) : list
+    }
   } catch (requestError) {
     error.value = requestError.response?.data?.message || 'Unable to load carparks.'
   } finally {
@@ -112,22 +148,23 @@ onMounted(async () => {
 
 <template>
   <section class="map-page">
+    <RouterLink
+      v-if="isCompareMode"
+      :to="backLink.to"
+      class="back-link"
+    >
+      <span aria-hidden="true">←</span> {{ backLink.label }}
+    </RouterLink>
     <div class="map-toolbar">
       <div>
         <h1>Map explorer</h1>
         <p class="text-secondary mb-0">Find parking around your selected destination.</p>
       </div>
 
-      <div class="map-controls card card-body">
+      <div v-if="!isCompareMode" class="map-controls card card-body">
         <div class="row g-3 align-items-end">
           <div class="col-sm-9">
-            <label class="form-label" for="map-radius">Distance from destination</label>
-            <select id="map-radius" v-model="radius" class="form-select">
-              <option value="500">Within 500 m</option>
-              <option value="1000">Within 1 km</option>
-              <option value="2000">Within 2 km</option>
-              <option value="5000">Within 5 km</option>
-            </select>
+            <FilterDropdown id="map-radius" v-model="radius" label="Distance from destination" :options="radiusOptions" />
           </div>
           <div class="col-sm-3">
             <button class="btn map-apply w-100" type="button" :disabled="loading" @click="applyFilters">Apply</button>
@@ -138,7 +175,8 @@ onMounted(async () => {
 
     <div class="map-summary d-flex flex-wrap justify-content-between gap-2 mb-2">
       <strong>{{ destination.label }}</strong>
-      <span class="small text-secondary">{{ carparks.length }} carparks within {{ Number(radius) / 1000 }} km</span>
+      <span v-if="isCompareMode" class="small text-secondary">Comparing {{ carparks.length }} carparks · numbers match the Compare ranking</span>
+      <span v-else class="small text-secondary">{{ carparks.length }} carparks within {{ Number(radius) >= 1000 ? `${Number(radius) / 1000} km` : `${radius} m` }}<template v-if="evOnly"> · EV charging only</template></span>
     </div>
 
     <div v-if="error" class="alert alert-danger" role="alert">{{ error }}</div>
@@ -149,12 +187,15 @@ onMounted(async () => {
       :destination="destination"
       :context-query="route.query"
       :route-geometry="routeGeometry"
+      :show-rank="isCompareMode"
       @select-carpark="showWalkingRoute"
     />
   </section>
 </template>
 
 <style scoped>
+.back-link { display: inline-flex; align-items: center; gap: .35rem; margin-bottom: .75rem; padding: .5rem .2rem; color: #087a58; font-weight: 750; text-decoration: none; }
+.back-link:hover { color: #055c42; text-decoration: underline; }
 .map-page { min-height: 100%; padding: 1.75rem clamp(1rem, 3vw, 3rem) 2.5rem; background-color: #f0fbf6; background-image: radial-gradient(#bfe9d7 1.1px, transparent 1.1px); background-size: 19px 19px; }
 .map-toolbar { display: grid; grid-template-columns: 1fr minmax(22rem, 32rem); align-items: center; gap: 1.5rem; margin-bottom: 1rem; }
 .map-toolbar h1 { font-size: clamp(2.5rem, 4vw, 3.25rem); margin-bottom: .5rem; }

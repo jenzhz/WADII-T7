@@ -11,6 +11,9 @@ const mapTarget = ref('/map')
 const hasSavedSearch = ref(false)
 const currentUser = ref(getCurrentUser())
 const signedIn = ref(Boolean(currentUser.value))
+// Hamburger menu (small screens only). Controlled by Vue instead of Bootstrap's
+// data attributes, so it can close itself after every page change.
+const menuOpen = ref(false)
 
 function refreshAuth() {
   currentUser.value = getCurrentUser()
@@ -82,7 +85,10 @@ onBeforeUnmount(() => {
   window.removeEventListener('auth-changed', refreshAuth)
 })
 
-watch(() => route.fullPath, refreshSearchTarget)
+watch(() => route.fullPath, () => {
+  refreshSearchTarget()
+  menuOpen.value = false
+})
 </script>
 
 <template>
@@ -94,7 +100,18 @@ watch(() => route.fullPath, refreshSearchTarget)
           <span class="brand-mark" aria-hidden="true">P</span>
           <span class="brand-name">Carpark<span>Compare</span>SG</span>
         </RouterLink>
-        <div class="navbar-nav flex-row flex-wrap gap-3">
+        <button
+          class="navbar-toggler"
+          type="button"
+          aria-controls="primary-nav-links"
+          :aria-expanded="menuOpen ? 'true' : 'false'"
+          :aria-label="menuOpen ? 'Close navigation menu' : 'Open navigation menu'"
+          @click="menuOpen = !menuOpen"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div id="primary-nav-links" class="collapse navbar-collapse" :class="{ show: menuOpen }">
+        <div class="navbar-nav ms-md-auto align-items-md-center gap-2 gap-md-3">
           <RouterLink v-if="signedIn" class="nav-link" :class="{ active: ['home', 'results'].includes(route.name) }" :to="searchTarget">
             {{ hasSavedSearch ? 'Results' : 'Search' }}
           </RouterLink>
@@ -105,6 +122,7 @@ watch(() => route.fullPath, refreshSearchTarget)
           <RouterLink v-if="signedIn" class="nav-link navbar-user" :class="{ active: route.name === 'profile' }" to="/profile" :title="currentUser?.name || ''">Profile</RouterLink>
           <button v-if="signedIn" class="btn btn-outline-success logout-button" type="button" @click="logout">Log out</button>
           <RouterLink v-else class="btn btn-outline-success logout-button" to="/login">Log in</RouterLink>
+        </div>
         </div>
       </div>
     </nav>
@@ -159,5 +177,14 @@ header {
 
 .logout-button { border-color: #087a58; border-radius: 2rem; color: #075d45; font-weight: 700; }
 .navbar-user { display: inline-flex; align-items: center; padding-inline: .25rem; color: #10243a; font-weight: 750; }
+/* Hamburger button and the opened menu on small screens */
+.navbar-toggler { border: 1.5px solid #174f40; border-radius: .7rem; padding: .35rem .6rem; }
+.navbar-toggler:focus { box-shadow: 0 0 0 .2rem #2cd79040; }
+@media (max-width: 767.98px) {
+  .navbar-collapse { padding: .75rem 0 .5rem; }
+  .navbar-nav .nav-link { padding-block: .6rem; }
+  .navbar-nav .navbar-user { padding-inline: .75rem; }
+  .navbar-nav .logout-button { align-self: flex-start; margin-top: .25rem; }
+}
 </style>
 

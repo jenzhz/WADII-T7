@@ -184,7 +184,7 @@ watch(() => props.carparkId, loadReviews)
         <div class="summary-details">
           <div v-if="difficultyConsensus" class="difficulty-consensus">
             <span>Community parking difficulty <small>Based on {{ summary.parkingDifficultyReviewCount }} rating{{ summary.parkingDifficultyReviewCount === 1 ? '' : 's' }}</small></span>
-            <strong class="difficulty-badge" :class="`difficulty-${summary.parkingDifficulty}`">{{ difficultyConsensus.label }}</strong>
+            <strong class="difficulty-badge" :class="`difficulty-${summary.parkingDifficulty}`" :title="difficultyConsensus.description">{{ difficultyConsensus.label }}</strong>
           </div>
           <dl class="breakdown"><div v-for="([label, value]) in breakdown" :key="label"><dt>{{ label }}</dt><dd>{{ value == null ? '—' : Number(value).toFixed(1) }}</dd></div></dl>
         </div>
@@ -241,7 +241,7 @@ watch(() => props.carparkId, loadReviews)
             </div>
             <div v-if="isMine(review)" class="owner-actions"><button @click="startReview(review)">Edit</button><button class="danger" @click="removeReview(review)">Delete</button></div>
           </header>
-          <span v-if="parkingDifficultyDetails(review.parkingDifficulty)" class="difficulty-badge" :class="`difficulty-${review.parkingDifficulty}`">{{ parkingDifficultyDetails(review.parkingDifficulty).label }}</span>
+          <span v-if="parkingDifficultyDetails(review.parkingDifficulty)" class="difficulty-badge" :class="`difficulty-${review.parkingDifficulty}`" :title="parkingDifficultyDetails(review.parkingDifficulty).description">Parking: {{ parkingDifficultyDetails(review.parkingDifficulty).label }}</span>
           <p class="review-comment">“{{ review.comment }}”</p>
           <dl class="review-ratings"><template v-for="([key, label]) in [['lotSpaciousness','Lot space'],['entranceExitAccessibility','Access'],['signage','Signage'],['pricing','Pricing']]" :key="key"><div v-if="review[key]"><dt>{{ label }}</dt><dd>{{ review[key] }}/5</dd></div></template></dl>
           <button class="helpful-button" :class="{ active: review.helpfulByCurrentUser }" type="button" :disabled="!user || isMine(review)" :title="isMine(review) ? 'You cannot vote for your own review' : !user ? 'Log in to mark this review as helpful' : ''" @click="markHelpful(review)">

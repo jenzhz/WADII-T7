@@ -28,7 +28,7 @@ export function getMockUraRateInfo(carpark, date = new Date()) {
   return {
     per30Min: rate,
     perEntry: null,
-    rateType: 'URA (sample data)',
+    rateType: 'Public carpark (sample data)',
     label: half(rate),
     detail: `${half(rate)} (sample)`,
     costLabel: null,

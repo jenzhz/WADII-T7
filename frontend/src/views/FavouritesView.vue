@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import api from '@/services/api'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import FilterDropdown from '@/components/FilterDropdown.vue'
 import destinationIconUrl from '@/assets/destination-pin.svg'
 import { formatDistance, normaliseCarparks } from '@/utils/carparkResults'
 import { rankCarparks } from '@/utils/ranking'
@@ -18,6 +19,11 @@ const activeFavourite = ref(null)
 const carparks = ref([])
 const preference = ref('walk')
 const vehicleType = ref('C')
+const vehicleOptions = [
+  { value: 'C', label: 'Car' },
+  { value: 'Y', label: 'Motorcycle' },
+  { value: 'H', label: 'Heavy vehicle' },
+]
 const loadingFavourites = ref(true)
 const loadingCarparks = ref(false)
 const favouritesError = ref('')
@@ -171,12 +177,7 @@ onMounted(loadFavourites)
             <h2 class="h4 mb-0">{{ activeFavourite.label }}</h2>
           </div>
           <div>
-            <label class="form-label small" for="favourite-vehicle">Vehicle type</label>
-            <select id="favourite-vehicle" v-model="vehicleType" class="form-select" @change="loadCarparks">
-              <option value="C">Car</option>
-              <option value="Y">Motorcycle</option>
-              <option value="H">Heavy vehicle</option>
-            </select>
+            <FilterDropdown id="favourite-vehicle" v-model="vehicleType" label="Vehicle type" label-class="form-label small" :options="vehicleOptions" @change="loadCarparks" />
           </div>
         </div>
 
@@ -195,7 +196,7 @@ onMounted(loadFavourites)
         </div>
         <div v-else-if="rankedCarparks.length === 0" class="state-panel">No nearby carparks were found for this vehicle type.</div>
         <div v-else class="row g-3">
-          <div v-for="carpark in rankedCarparks" :key="carpark.id" class="col-md-4">
+          <div v-for="carpark in rankedCarparks" :key="carpark.id" class="col-12 col-md-6 col-lg-4">
             <article class="carpark-card h-100" :class="{ recommended: carpark.rank === 1 }">
               <span class="badge mb-3" :class="carpark.rank === 1 ? 'bg-success' : 'bg-secondary'">
                 {{ carpark.rank === 1 ? 'Recommended' : `#${carpark.rank}` }}

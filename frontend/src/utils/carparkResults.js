@@ -35,8 +35,12 @@ export function filterAndSortCarparks(carparks, { vehicleType, maxDistance, avai
     (!availableOnly || (carpark.availableLots !== null && carpark.availableLots > 0)) &&
     (!evOnly || carpark.hasEvCharger === true),
   )
-  // Unknown values appear last. Stable name ordering breaks ties.
+  // Full carparks (0 lots) always go to the bottom, whatever the sort.
+  // Then unknown values appear last. Stable name ordering breaks ties.
+  const isFull = carpark => carpark.availableLots === 0
   return filtered.sort((a, b) => {
+    const fullLast = Number(isFull(a)) - Number(isFull(b))
+    if (fullLast !== 0) return fullLast
     const field = sortBy === 'lots' ? 'availableLots' : 'distance'
     if (a[field] === null && b[field] !== null) return 1
     if (b[field] === null && a[field] !== null) return -1

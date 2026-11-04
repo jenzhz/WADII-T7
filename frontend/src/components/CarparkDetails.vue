@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
 import { getCurrentUser } from '@/services/auth'
 import RateSchedule from '@/components/RateSchedule.vue'
+import { carparkTypeLabel } from '@/utils/carparkLabels'
 import CarparkMap from '@/components/CarparkMap.vue'
 
 const props = defineProps({
@@ -223,7 +224,7 @@ watch(
               ID: {{ carparkDetails?.carparkId || carparkId }}
             </span>
             <span v-if="carparkDetails?.agency" class="badge agency-badge">
-              {{ carparkDetails.agency }}
+              {{ carparkTypeLabel(carparkDetails.agency) }}
             </span>
             <span class="badge type-badge">{{ lotTypeLabel }}</span>
           </div>

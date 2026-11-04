@@ -10,18 +10,26 @@ const props = defineProps({
   showNow: { type: Boolean, default: true },
 })
 
+// "7am – 6pm: $2.14 first hour" -> { time: '7am – 6pm', price: '$2.14 first hour' }
+// so the time and the price can be shown in two columns. Lines without a short
+// "time:" prefix (e.g. long mall text from the CSV) are shown as they are.
+function splitLine(line) {
+  const match = /^([^$:]{2,40}):\s*(.+)$/.exec(String(line))
+  return match ? { time: match[1].trim(), price: match[2].trim() } : { time: null, price: line }
+}
+
 const sections = computed(() => {
   const schedule = props.rate?.schedule
   if (!schedule) return []
   // URA, or a mall without data: one box with a message
   if (schedule.message) return [{ label: null, lines: [schedule.message], isMessage: true }]
   // HDB: Monday to Saturday / Sunday
-  if (schedule.sections) return schedule.sections
-  return [
+  const list = schedule.sections || [
     { label: 'Weekdays', lines: schedule.weekday },
     { label: 'Saturday', lines: schedule.saturday },
     { label: 'Sunday & PH', lines: schedule.sundayPublicHoliday },
   ]
+  return list.map(section => ({ ...section, rows: (section.lines || []).map(splitLine) }))
 })
 </script>
 
@@ -33,12 +41,17 @@ const sections = computed(() => {
     </p>
     <div v-for="(section, index) in sections" :key="index" class="rate-section">
       <h3 v-if="section.label" class="rate-day">{{ section.label }}</h3>
-      <template v-if="section.lines?.length">
-        <p v-for="(line, lineIndex) in section.lines" :key="lineIndex" class="rate-text" :class="{ 'text-secondary': section.isMessage }">{{ line }}</p>
+      <template v-if="section.isMessage">
+        <p v-for="(line, lineIndex) in section.lines" :key="lineIndex" class="rate-text text-secondary">{{ line }}</p>
       </template>
+      <dl v-else-if="section.rows?.length" class="rate-rows">
+        <div v-for="(row, rowIndex) in section.rows" :key="rowIndex" class="rate-row" :class="{ 'no-time': !row.time }">
+          <dt v-if="row.time">{{ row.time }}</dt>
+          <dd>{{ row.price }}</dd>
+        </div>
+      </dl>
       <p v-else class="rate-text text-secondary">Not listed</p>
     </div>
-    <p v-if="rate.source" class="rate-source">Source: {{ rate.source }}. Rates may have changed; check signs at the carpark.</p>
   </div>
   <div v-else-if="rate?.label" class="rate-schedule">
     <p v-if="showNow && rate.rateType" class="rate-now">
@@ -54,9 +67,15 @@ const sections = computed(() => {
 .rate-day { margin: 0 0 .25rem; color: #0f5c4d; font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; }
 .rate-text { margin: 0; font-size: .9rem; line-height: 1.45; }
 .rate-text + .rate-text { margin-top: .2rem; }
+.rate-rows { display: grid; gap: .3rem; margin: 0; }
+.rate-row { display: grid; grid-template-columns: minmax(5.5rem, max-content) 1fr; gap: .15rem .75rem; align-items: baseline; }
+.rate-row.no-time { grid-template-columns: 1fr; }
+.rate-row dt { color: #52665d; font-size: .8rem; font-weight: 650; white-space: nowrap; }
+.rate-row dd { margin: 0; color: #10243a; font-size: .9rem; font-weight: 650; line-height: 1.4; }
+.compact .rate-row { grid-template-columns: 1fr; gap: 0; }
+.compact .rate-row dd { font-size: .82rem; }
 .rate-now { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: 0; font-size: .9rem; }
 .rate-type { padding: .15rem .55rem; border-radius: 2rem; background: #e6f4f0; color: #0f5c4d; font-size: .75rem; font-weight: 700; }
-.rate-source { margin: 0; color: #63716a; font-size: .75rem; }
 .compact .rate-section { padding: .45rem .6rem; }
 .compact .rate-text { font-size: .82rem; }
 </style>

@@ -252,7 +252,7 @@ onMounted(loadCommunity)
               <article v-for="carpark in guideCarparks" :key="carpark.id" class="guide-card">
               <header>
                 <div><h3>{{ carpark.name }}</h3><span>{{ carpark.community.reviewCount }} experiences · {{ carpark.community.replyCount || 0 }} replies<span v-if="Number.isFinite(carpark.distance)"> · {{ Math.round(carpark.distance) }} m away</span></span></div>
-                <span v-if="parkingDifficultyDetails(carpark.community.parkingDifficulty)" class="difficulty-badge" :class="`difficulty-${carpark.community.parkingDifficulty}`">{{ parkingDifficultyDetails(carpark.community.parkingDifficulty).label }}</span>
+                <span v-if="parkingDifficultyDetails(carpark.community.parkingDifficulty)" class="difficulty-badge" :class="`difficulty-${carpark.community.parkingDifficulty}`" :title="parkingDifficultyDetails(carpark.community.parkingDifficulty).description">Parking: {{ parkingDifficultyDetails(carpark.community.parkingDifficulty).label }}</span>
               </header>
               <div class="vote-bars">
                 <div v-for="option in difficultyMeta" :key="option.value">

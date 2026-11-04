@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { looseNames, normaliseName } from '../utils/rateNames.js'
 import { estimateMockUraCost, getMockUraRateInfo, isMockUraEnabled } from './mockUraRates.js'
+import { estimateMockCost, getMockRateInfo, isMockRatesEnabled } from './mockRates.js'
 
 // HDB short-term parking rules used to estimate charges.
 // Source: https://www.hdb.gov.sg/parking/other-parking-matters/shortterm-parking/shortterm-parking-charges
@@ -76,19 +77,22 @@ function hdbCarRate(carparkId, date) {
 
 // Current rate for display:
 //   HDB -> HDB rules above
-//   LTA -> CarparkRates.csv ("See rates"), or "Varies" when the CSV has no entry
+//   LTA -> CarparkRates.csv ("Varies by time", full rates on details/compare), or "Varies" when the CSV has no entry
 //   URA -> dash, with "Rate information is currently not available." in the rates box
-// rateType: "HDB (Within Central Area)", "HDB (Outside Central Area)", "LTA" or "URA";
+// rateType (shown to users): "HDB (Within Central Area)", "HDB (Outside Central Area)",
+// "Mall" (LTA) or "Public carpark" (URA);
 // label: short text for cards; detail: longer text for compare/details pages;
 // costLabel: what to show instead of an estimated cost when it cannot be calculated.
 export function getRateInfo(carpark, date = new Date()) {
+  // Demo mode: sample weekday/weekend rates for every carpark type (see mockRates.js)
+  if (isMockRatesEnabled()) return getMockRateInfo(carpark, date)
   if (carpark.agency === 'URA') {
     // Sample rates until the real URA API is connected (see mockUraRates.js)
     if (isMockUraEnabled()) return getMockUraRateInfo(carpark, date)
     return {
       per30Min: null,
       perEntry: null,
-      rateType: 'URA',
+      rateType: 'Public carpark',
       label: '—',
       detail: '—',
       costLabel: '—',
@@ -102,9 +106,9 @@ export function getRateInfo(carpark, date = new Date()) {
     return {
       per30Min: null,
       perEntry: null,
-      rateType: 'LTA',
-      label: schedule ? 'See rates' : 'Varies',
-      detail: schedule ? 'See rates below' : 'Varies – check at carpark',
+      rateType: 'Mall',
+      label: schedule ? 'Varies by time' : 'Varies',
+      detail: schedule ? "View details for this mall's full rates." : 'Varies – check at carpark',
       costLabel: 'Varies',
       isCentralArea: false,
       schedule: schedule
@@ -121,6 +125,7 @@ export function getRateInfo(carpark, date = new Date()) {
 // separately so a stay that crosses 5pm uses the correct rate for each block.
 // Returns null when the carpark is not HDB (rate unknown).
 export function estimateCost(carpark, minutes, start = new Date()) {
+  if (isMockRatesEnabled()) return estimateMockCost(carpark, minutes, start)
   if (carpark.agency === 'URA' && isMockUraEnabled()) return estimateMockUraCost(carpark, minutes, start)
   if (carpark.agency !== 'HDB') return null
   if (carpark.lotType === 'Y') return MOTORCYCLE_PER_ENTRY
@@ -151,7 +156,7 @@ function hdbSchedule(carpark) {
   if (carpark.lotType === 'H') return sameEveryDay([half(HEAVY_VEHICLE_RATE)])
   if (isCentralArea(carpark.carparkId)) {
     return { sections: [
-      { label: 'Monday to Saturday', lines: [`7:00am to 5:00pm: ${half(CENTRAL_PEAK_RATE)}`, `Other hours: ${half(CAR_RATE)}`] },
+      { label: 'Monday to Saturday', lines: [`7am – 5pm: ${half(CENTRAL_PEAK_RATE)}`, `Other hours: ${half(CAR_RATE)}`] },
       { label: 'Sunday', lines: [`All day: ${half(CAR_RATE)}`] },
     ] }
   }

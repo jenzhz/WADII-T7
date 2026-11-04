@@ -5,12 +5,18 @@ import api from '@/services/api'
 import { rankCarparks } from '../utils/ranking'
 import { normaliseCarparks, formatDistance } from '../utils/carparkResults'
 import RateSchedule from '@/components/RateSchedule.vue'
+import FilterDropdown from '@/components/FilterDropdown.vue'
+import CarparkMap from '@/components/CarparkMap.vue'
+import { getCommunitySummaries } from '@/services/reviews'
+import { carparkTypeLabel } from '@/utils/carparkLabels'
+import { parkingDifficultyDetails } from '@/utils/parkingDifficulty'
 
 const route = useRoute()
 const router = useRouter()
 const COMPARISON_KEY = 'lastComparison'
 const duration = ref(120)
 const durationOptions = [60, 120, 180, 240, 360, 480]
+  .map(minutes => ({ value: minutes, label: `${minutes / 60} hour${minutes > 60 ? 's' : ''}` }))
 const preference = ref('walk')
 const weightOptions = {
   walk: { lots: 0.3, walk: 0.7, mode: 'walk', label: 'Closer' },
@@ -42,12 +48,14 @@ async function loadCarparks() {
         latitude: route.query.latitude,
         longitude: route.query.longitude,
         vehicleType: route.query.vehicleType || 'C',
-        radius: 1000,
+        radius: 5000, // Results lets users pick carparks up to 5 km away
         duration: duration.value,
       }
     })
     const allCarparks = normaliseCarparks(response.data.carparks)
     selectedCarparks.value = allCarparks.filter(carpark => selectedIds.value.includes(carpark.id))
+    loadCommunity()
+    loadWalking()
   } catch (error) {
     message.value = 'HTTP Error ' + error.message
   } finally {
@@ -70,6 +78,80 @@ onMounted(async () => {
   await loadCarparks()
 })
 
+// Community rating and parking difficulty for the selected carparks
+const communitySummaries = ref(new Map())
+async function loadCommunity() {
+  try {
+    const data = await getCommunitySummaries(selectedCarparks.value.map(carpark => carpark.id))
+    communitySummaries.value = new Map(data.summaries.map(item => [item.carparkId, item]))
+  } catch {
+    communitySummaries.value = new Map()
+  }
+}
+const communityFor = carpark => communitySummaries.value.get(carpark.id) || null
+const difficultyFor = carpark => parkingDifficultyDetails(communityFor(carpark)?.parkingDifficulty)
+
+// Real walking distance and time (same OneMap route as Results and the details page).
+// At most 3 carparks are compared, so all of them are fetched.
+async function loadWalking() {
+  await Promise.all(selectedCarparks.value.map(async carpark => {
+    if (carpark.walkingDistance != null || carpark.latitude == null || carpark.longitude == null) return
+    try {
+      const { data } = await api.get('/locations/walking-route', {
+        params: { originLat: carpark.latitude, originLng: carpark.longitude, destLat: route.query.latitude, destLng: route.query.longitude },
+      })
+      selectedCarparks.value = selectedCarparks.value.map(item => item.id === carpark.id
+        ? { ...item, walkingDistance: data.walkingDistance, walkingTime: data.walkingTime }
+        : item)
+    } catch {
+      // Keep the straight-line estimate
+    }
+  }))
+}
+
+// Map of the compared carparks: numbered markers match the card ranks.
+// Clicking "Show walking route" on a marker draws the route to the destination.
+const mapDestination = computed(() => ({
+  latitude: Number(route.query.latitude),
+  longitude: Number(route.query.longitude),
+  label: String(route.query.destination || 'Your destination'),
+}))
+const routeGeometry = ref(null)
+const routeCarparkId = ref(null)
+const routeError = ref('')
+
+async function showRoute(carpark) {
+  routeError.value = ''
+  routeCarparkId.value = carpark.id
+  routeGeometry.value = null
+  try {
+    const { data } = await api.get('/carpark-details', {
+      params: {
+        carparkId: carpark.id,
+        lotType: route.query.vehicleType || 'C',
+        originLat: carpark.latitude,
+        originLng: carpark.longitude,
+        destLat: mapDestination.value.latitude,
+        destLng: mapDestination.value.longitude,
+        destinationName: mapDestination.value.label,
+      },
+    })
+    if (routeCarparkId.value === carpark.id) routeGeometry.value = data.data?.routeGeometry || null
+  } catch (error) {
+    routeError.value = error.response?.data?.message || 'Unable to load the walking route.'
+  }
+}
+
+// Walking distance when known, otherwise straight-line distance
+const distanceOf = carpark => carpark.walkingDistance ?? carpark.distance ?? null
+
+function lotsClass(carpark) {
+  const lots = carpark.availableLots
+  if (lots == null) return 'lots-unknown'
+  if (lots === 0) return 'lots-full'
+  return lots <= 20 ? 'lots-limited' : 'lots-available'
+}
+
 // When the duration changes, only update the estimated costs.
 // The cards stay on screen (no "Loading carparks…"); only the cost line shows "Updating…".
 const updatingCost = ref(false)
@@ -85,7 +167,7 @@ async function refreshCosts() {
         latitude: route.query.latitude,
         longitude: route.query.longitude,
         vehicleType: route.query.vehicleType || 'C',
-        radius: 1000,
+        radius: 5000, // Results lets users pick carparks up to 5 km away
         duration: duration.value,
       }
     })
@@ -104,10 +186,9 @@ async function refreshCosts() {
 watch(duration, refreshCosts)
 
 const ranked = computed(() => rankCarparks(selectedCarparks.value, weightOptions[preference.value]))
-const  columnClass = computed(()=>{
-  const count = Math.max(1, ranked.value.length)
-  return 'col-md-' + Math.floor(12 / count)
-})
+// Responsive columns: 3 cards -> 3 / 2 / 1 per row (large / tablet / phone),
+// 2 cards -> 2 / 2 / 1
+const columnClass = computed(() => (ranked.value.length >= 3 ? 'col-md-6 col-lg-4' : 'col-md-6'))
 // Most available lots among the selected carparks (null values are skipped)
 const bestLots = computed(() => {
   let best = null
@@ -119,13 +200,12 @@ const bestLots = computed(() => {
   return best
 })
 
-// Shortest distance among the selected carparks (null values are skipped)
+// Shortest distance among the selected carparks (walking distance when known)
 const bestDistance = computed(() => {
   let best = null
   for (const carpark of ranked.value) {
-    if (carpark.distance != null && (best == null || carpark.distance < best)) {
-      best = carpark.distance
-    }
+    const distance = distanceOf(carpark)
+    if (distance != null && (best == null || distance < best)) best = distance
   }
   return best
 })
@@ -165,16 +245,11 @@ function formatCost(carpark) {
     <template v-else>
       <div class="compare-controls">
         <div class="duration-field">
-          <label class="control-label" for="duration">Parking duration</label>
-          <select id="duration" v-model.number="duration" class="form-select">
-            <option v-for="minutes in durationOptions" :key="minutes" :value="minutes">
-              {{ minutes / 60 }} hour{{ minutes > 60 ? 's' : '' }}
-            </option>
-          </select>
+          <FilterDropdown id="duration" v-model="duration" label="Parking duration" label-class="control-label" :options="durationOptions" />
         </div>
 
         <fieldset class="preference-field">
-          <legend>What matters most?</legend>
+          <legend>What matters most? <small class="legend-hint">We'll recommend the best match.</small></legend>
           <div class="preference-options">
             <template v-for="(value, key) in weightOptions" :key="key">
               <input :id="`pref-${key}`" v-model="preference" type="radio" name="comparison-preference" class="btn-check" :value="key">
@@ -195,30 +270,40 @@ function formatCost(carpark) {
               </div>
 
               <h2 class="h6 fw-bold mb-1">{{ carpark.name }}</h2>
-              <span v-if="carpark.hasEvCharger" class="ev-charging-badge mb-3"
+              <p class="compare-meta">{{ carparkTypeLabel(carpark.agency) }} · {{ { C: 'Car', Y: 'Motorcycle', H: 'Heavy vehicle' }[carpark.lotType] || carpark.lotType }}</p>
+              <div v-if="carpark.hasEvCharger || difficultyFor(carpark)" class="compare-tags">
+              <span v-if="carpark.hasEvCharger" class="ev-charging-badge"
                 title="EV charging point available" aria-label="EV charging point available">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                   <path fill="currentColor" d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66l.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8Z" />
                 </svg>
                 EV Charging
               </span>
+                <span v-if="difficultyFor(carpark)" class="difficulty-tag" :class="`difficulty-${difficultyFor(carpark).value}`" :title="difficultyFor(carpark).description">Parking: {{ difficultyFor(carpark).label }}</span>
+              </div>
+              <p class="compare-rating" :class="{ empty: !communityFor(carpark)?.reviewCount }">
+                <span aria-hidden="true">★</span>
+                <template v-if="communityFor(carpark)?.reviewCount">
+                  <strong>{{ Number(communityFor(carpark).overallRating).toFixed(1) }}</strong>
+                  ({{ communityFor(carpark).reviewCount }} review{{ communityFor(carpark).reviewCount === 1 ? '' : 's' }})
+                </template>
+                <template v-else>No reviews yet</template>
+              </p>
 
               <dl class="metrics mb-3">
                 <div :class="{ best: bestLots != null && bestLots > 0 && carpark.availableLots === bestLots, full: carpark.availableLots === 0 }">
                   <dt>Available lots</dt>
-                  <dd>{{ carpark.availableLots ?? '—' }}</dd>
+                  <dd :class="lotsClass(carpark)">{{ carpark.availableLots === 0 ? 'Full' : (carpark.availableLots ?? '—') }}</dd>
                 </div>
-                <div :class="{ best: bestDistance != null && carpark.distance === bestDistance }">
+                <div :class="{ best: bestDistance != null && distanceOf(carpark) === bestDistance }">
                   <dt>Distance</dt>
-                  <dd>{{ formatDistance(carpark.distance ?? null) }}</dd>
+                  <dd v-if="carpark.walkingDistance != null" title="Walking distance">{{ formatDistance(carpark.walkingDistance) }}</dd>
+                  <dd v-else-if="carpark.distance != null" title="Straight-line estimate">~{{ formatDistance(carpark.distance) }}</dd>
+                  <dd v-else>—</dd>
                 </div>
                 <div>
-                  <dt>Rate type</dt>
-                  <dd>{{ carpark.rate?.rateType ?? '—' }}</dd>
-                </div>
-                <div>
-                  <dt>Rate now</dt>
-                  <dd>{{ carpark.rate?.detail ?? carpark.rate?.label ?? '—' }}</dd>
+                  <dt>Walk</dt>
+                  <dd>{{ carpark.walkingTime == null ? '—' : `${carpark.walkingTime} min` }}</dd>
                 </div>
                 <div :class="{ best: bestCost != null && carpark.estimatedCost === bestCost }">
                   <dt>Est. cost ({{ duration / 60 }}h)</dt>
@@ -240,16 +325,27 @@ function formatCost(carpark) {
         </div>
       </TransitionGroup>
 
-      <aside class="compare-notes mt-4" aria-label="About these figures">
-        <h2 class="notes-title">About these figures</h2>
-        <ul class="notes-list">
-          <li><span class="notes-swatch" aria-hidden="true"></span>Highlighted values are the best in each category.</li>
-          <li><strong>HDB carparks:</strong> estimated cost based on HDB short-term parking charges, starting from now.</li>
-          <li><strong>Malls &amp; buildings:</strong> published rates from LTA OneMotoring, shown under <em>Parking rates</em>. Each mall sets its own pricing rules, so the estimated cost shows <em>Varies</em> instead of a single amount.</li>
-          <li><strong>URA carparks:</strong> rates marked <em>sample data</em> are placeholders for testing, not official URA rates.</li>
-          <li><strong>Cheapest:</strong> calculated estimated costs are ordered lowest first; <em>Varies</em> and unavailable prices appear afterwards.</li>
-        </ul>
-      </aside>
+      <section class="compare-map-section mt-4" aria-label="Compared carparks on the map">
+        <div class="d-flex flex-wrap justify-content-between align-items-baseline gap-2 mb-2">
+          <h2 class="h5 fw-bold mb-0">On the map</h2>
+          <span class="small text-secondary">Numbers match the ranking above. Tap a marker to see its walking route.</span>
+          <RouterLink class="open-map-link" :to="{ name: 'map', query: { ...route.query, ids: ranked.map(carpark => carpark.id).join(','), from: 'compare' } }">
+            Open full map ↗
+          </RouterLink>
+        </div>
+        <div v-if="routeError" class="alert alert-warning py-2 mb-2" role="alert">{{ routeError }}</div>
+        <CarparkMap
+          :carparks="ranked"
+          :destination="mapDestination"
+          :context-query="route.query"
+          :route-geometry="routeGeometry"
+          :active-carpark-id="routeCarparkId"
+          show-rank
+          map-height="24rem"
+          @select-carpark="showRoute"
+        />
+      </section>
+
     </template>
     </div>
   </section>
@@ -288,6 +384,22 @@ function formatCost(carpark) {
 }
 .ev-charging-badge { display: inline-flex; align-self: flex-start; align-items: center; gap: .3rem; padding: .3rem .6rem; border-radius: 2rem; color: #15803d; background: #dcfce7; font-size: .72rem; font-weight: 750; white-space: nowrap; }
 .ev-charging-badge svg { width: 1rem; height: 1rem; }
+.open-map-link { color: #087a58; font-size: .875rem; font-weight: 750; text-decoration: none; }
+.open-map-link:hover { text-decoration: underline; }
+.compare-meta { margin: 0 0 .6rem; color: #63716a; font-size: .8rem; }
+.compare-tags { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .6rem; }
+.compare-tags .ev-charging-badge { margin: 0; }
+.difficulty-tag { display: inline-flex; align-items: center; padding: .3rem .6rem; border-radius: 2rem; font-size: .72rem; font-weight: 750; white-space: nowrap; }
+.difficulty-beginner-friendly { color: #087a58; background: #dff7ec; }
+.difficulty-moderate { color: #805b00; background: #fff0bf; }
+.difficulty-challenging { color: #a02f2f; background: #fde2e2; }
+.compare-rating { display: flex; align-items: center; gap: .3rem; margin: 0 0 .9rem; color: #52606d; font-size: .8rem; }
+.compare-rating > span:first-child { color: #f2a900; font-size: 1rem; }
+.compare-rating.empty > span:first-child { color: #aeb9b4; }
+.legend-hint { margin-left: .35rem; color: #63716a; font-size: .78rem; font-weight: 500; }
+.metrics dd.lots-available { color: #0f7a5f; }
+.metrics dd.lots-limited { color: #9a6700; }
+.metrics dd.lots-full { color: #b42318; }
 .metrics div {
   display: flex;
   justify-content: space-between;
@@ -310,45 +422,6 @@ function formatCost(carpark) {
 .metrics .full {
   background: #fce5e5;
   color: #9f3030;
-}
-.compare-notes {
-  padding: 1rem 1.25rem;
-  border: 1px solid #d9e3df;
-  border-left: 4px solid #0f5c4d;
-  border-radius: 0.75rem;
-  background: white;
-}
-.notes-title {
-  margin-bottom: 0.5rem;
-  color: #0f5c4d;
-  font-size: 0.8rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.notes-list {
-  display: grid;
-  gap: 0.35rem;
-  margin: 0;
-  padding-left: 1.1rem;
-  color: #4b5b54;
-  font-size: 0.875rem;
-}
-.notes-list li::marker {
-  color: #0f5c4d;
-}
-.notes-list strong {
-  color: #173e30;
-}
-.notes-swatch {
-  display: inline-block;
-  width: 0.8rem;
-  height: 0.8rem;
-  margin-right: 0.4rem;
-  border-radius: 0.2rem;
-  background: #e6f4f0;
-  border: 1px solid #b9ddd1;
-  vertical-align: -0.1rem;
 }
 .details-link {
   color: #0f5c4d;

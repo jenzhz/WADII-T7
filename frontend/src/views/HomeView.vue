@@ -1,7 +1,14 @@
 <script setup>
-import { ref, watch } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router' 
 import api from '@/services/api'
+import FilterDropdown from '@/components/FilterDropdown.vue'
+import {
+  addRecentSearch as saveRecentSearch,
+  clearRecentSearches as clearAllRecentSearches,
+  deleteRecentSearch,
+  getRecentSearches,
+} from '@/services/recentSearches'
 
 const router = useRouter()
 const SEARCH_KEY = 'carparkcompare.search'
@@ -12,6 +19,66 @@ const results = ref([])
 const selectedDestination = ref(null)
 
 const vehicleType = ref('C')
+const vehicleOptions = [
+  { value: 'C', label: 'Car' },
+  { value: 'Y', label: 'Motorcycle' },
+  { value: 'H', label: 'Heavy vehicle' },
+]
+
+// Recent searches: saved to the signed-in user's account, so they follow the
+// user to any browser or device. Failures are ignored (the feature is optional).
+const recentSearches = ref([])
+
+// Backend items -> same shape as OneMap results, so selectDestination() can use them
+function toDestination(item) {
+  return { id: item.id, SEARCHVAL: item.label, LATITUDE: item.latitude, LONGITUDE: item.longitude }
+}
+
+function setRecentSearches(items) {
+  recentSearches.value = Array.isArray(items) ? items.map(toDestination) : []
+}
+
+onMounted(async () => {
+  try {
+    setRecentSearches(await getRecentSearches())
+  } catch {
+    recentSearches.value = []
+  }
+})
+
+async function addRecentSearch(item) {
+  try {
+    setRecentSearches(await saveRecentSearch({ label: item.SEARCHVAL, latitude: item.LATITUDE, longitude: item.LONGITUDE }))
+  } catch {
+    // Not saved; the search itself still works
+  }
+}
+
+async function removeRecentSearch(item) {
+  const previous = recentSearches.value
+  recentSearches.value = previous.filter(recent => recent.id !== item.id) // update the screen straight away
+  try {
+    setRecentSearches(await deleteRecentSearch(item.id))
+  } catch {
+    recentSearches.value = previous
+  }
+}
+
+async function clearRecentSearches() {
+  const previous = recentSearches.value
+  recentSearches.value = []
+  try {
+    await clearAllRecentSearches()
+  } catch {
+    recentSearches.value = previous
+  }
+}
+
+// Clicking a recent search goes straight to the results
+function useRecentSearch(item) {
+  selectDestination(item)
+  goToResults()
+}
 
 function saveSearch() {
   localStorage.setItem(SEARCH_KEY, JSON.stringify({
@@ -61,12 +128,56 @@ function selectDestination(item) {
   saveSearch()
 }
 
+// "Use my current location": the browser's Geolocation API gives the user's
+// position, which is used as the destination (no typing needed).
+const locating = ref(false)
+const locationError = ref('')
+
+function useCurrentLocation() {
+  locationError.value = ''
+  if (!('geolocation' in navigator)) {
+    locationError.value = 'Your browser does not support location access.'
+    return
+  }
+  locating.value = true
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      locating.value = false
+      const { latitude, longitude } = position.coords
+      // The app only has Singapore carpark data
+      const inSingapore = latitude > 1.15 && latitude < 1.48 && longitude > 103.6 && longitude < 104.1
+      if (!inSingapore) {
+        locationError.value = 'Your location seems to be outside Singapore. Please search for a destination instead.'
+        return
+      }
+      results.value = []
+      destination.value = 'Current location'
+      selectedDestination.value = {
+        SEARCHVAL: 'Current location',
+        LATITUDE: latitude.toFixed(6),
+        LONGITUDE: longitude.toFixed(6),
+        isCurrentLocation: true,
+      }
+      goToResults()
+    },
+    (error) => {
+      locating.value = false
+      locationError.value = error.code === error.PERMISSION_DENIED
+        ? 'Location access was blocked. Allow location in your browser settings, or search for a destination.'
+        : 'Could not get your location. Please try again or search for a destination.'
+    },
+    { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+  )
+}
+
 function goToResults() {
   if (selectedDestination.value === null) {
     return
   }
 
   saveSearch()
+  // "Current location" changes every time, so it is not kept in recent searches
+  if (!selectedDestination.value.isCurrentLocation) addRecentSearch(selectedDestination.value)
 
   router.push({
     name : "results",
@@ -104,7 +215,7 @@ function goToResults() {
           <label for="destination">Destination</label>
           <div class="position-relative">
             <input id="destination" v-model="destination" type="text" name="destination"
-              placeholder="e.g. Suntec City or a postal code" autocomplete="off" aria-describedby="destination-help" @input="searchDestination" />
+              placeholder="e.g. Suntec City or a postal code" autocomplete="off" @input="searchDestination" />
             <ul v-if="results.length > 0" class="dropdown-menu show w-100 top-100 start-0 shadow destination-suggestions"
               aria-label="Destination suggestions">
               <li v-for="(item, index) in results" :key="index">
@@ -112,22 +223,36 @@ function goToResults() {
               </li>
             </ul>
           </div>
-          <small id="destination-help">{{ selectedDestination ? 'Destination selected. Ready to search.' : 'Choose a matching destination from the suggestions.' }}</small>
+          <button class="location-button" type="button" :disabled="locating" @click="useCurrentLocation">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M12 5.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Z" /></svg>
+            {{ locating ? 'Finding your location…' : 'Use my current location' }}
+          </button>
+          <small v-if="locationError" class="location-error" role="alert">{{ locationError }}</small>
         </div>
 
         <div class="vehicle-field">
-          <label for="vehicle-type">Vehicle type</label>
-          <select id="vehicle-type" v-model="vehicleType">
-            <option value="C">Car</option>
-            <option value="Y">Motorcycle</option>
-            <option value="H">Heavy Vehicle</option>
-          </select>
+          <FilterDropdown id="vehicle-type" v-model="vehicleType" label="Vehicle type" label-class="" :options="vehicleOptions" />
         </div>
 
         <div class="search-actions">
           <button v-if="destination" class="clear-button" type="button" @click="clearSearch">Clear</button>
           <button class="search-button" type="submit" :disabled="!selectedDestination">Search</button>
         </div>
+        <section v-if="recentSearches.length" class="recent-searches" aria-label="Recent searches">
+          <div class="recent-header">
+            <h2>Recent searches</h2>
+            <button class="recent-clear" type="button" @click="clearRecentSearches">Clear all</button>
+          </div>
+          <ul class="recent-list">
+            <li v-for="item in recentSearches" :key="item.id" class="recent-chip">
+              <button class="recent-chip-main" type="button" :title="`Search parking near ${item.SEARCHVAL}`" @click="useRecentSearch(item)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2M21 12a9 9 0 1 1-9-9 9 9 0 0 1 9 9Z" /></svg>
+                <span>{{ item.SEARCHVAL }}</span>
+              </button>
+              <button class="recent-chip-remove" type="button" :aria-label="`Remove ${item.SEARCHVAL} from recent searches`" @click="removeRecentSearch(item)">×</button>
+            </li>
+          </ul>
+        </section>
       </form>
 
       <RouterLink class="community-feature" to="/community">
@@ -188,6 +313,11 @@ function goToResults() {
 .search-card input, .search-card select { width: 100%; min-height: 3.2rem; padding: .8rem 1rem; border: 1.5px solid #174f40; border-radius: .8rem; background: white; outline: none; }
 .search-card input:focus, .search-card select:focus { border-color: #0a9e70; box-shadow: 0 0 0 .2rem #2cd79025; }
 .destination-field small { display: block; margin-top: .5rem; color: #52606d; }
+.destination-field small.location-error { color: #a02f2f; }
+.location-button { display: inline-flex; align-items: center; gap: .4rem; margin-top: .6rem; padding: 0; border: 0; color: #087a58; background: none; font-size: .85rem; font-weight: 750; }
+.location-button:hover:not(:disabled) { text-decoration: underline; }
+.location-button:disabled { opacity: .6; }
+.location-button svg { width: 1.05rem; height: 1.05rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .destination-suggestions { z-index: 20; max-height: 16rem; overflow-y: auto; }
 .search-actions { display: flex; min-width: 10rem; gap: .5rem; margin-top: 1.65rem; }
 .search-button, .clear-button { min-height: 3.2rem; border-radius: .8rem; font-weight: 750; }
@@ -196,6 +326,19 @@ function goToResults() {
 .search-button:disabled { opacity: .5; }
 .clear-button { padding-inline: .8rem; border: 1px solid #82958e; color: #40534c; background: white; }
 
+.recent-searches { grid-column: 1 / -1; margin-top: -.25rem; padding-top: 1rem; border-top: 1px solid #e3ebe7; }
+.recent-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .6rem; }
+.recent-header h2 { margin: 0; color: #173e30; font-size: .85rem; font-weight: 750; }
+.recent-clear { padding: 0; border: 0; color: #087a58; background: none; font-size: .8rem; font-weight: 700; }
+.recent-clear:hover { text-decoration: underline; }
+.recent-list { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0; padding: 0; list-style: none; }
+.recent-chip { display: inline-flex; align-items: center; max-width: 100%; border: 1.5px solid #b8cec5; border-radius: 2rem; background: white; }
+.recent-chip:hover { border-color: #0a9e70; }
+.recent-chip-main { display: inline-flex; align-items: center; gap: .4rem; min-width: 0; padding: .45rem .3rem .45rem .8rem; border: 0; color: #173e30; background: none; font-size: .85rem; font-weight: 650; }
+.recent-chip-main span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 16rem; }
+.recent-chip-main svg { width: 1rem; height: 1rem; flex-shrink: 0; fill: none; stroke: #087a58; stroke-width: 2; stroke-linecap: round; }
+.recent-chip-remove { padding: .3rem .7rem .3rem .3rem; border: 0; color: #82958e; background: none; font-size: 1.05rem; line-height: 1; }
+.recent-chip-remove:hover { color: #a02f2f; }
 .community-feature { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 1rem; margin-top: 2rem; padding: 1.25rem 1.5rem; border: 1px solid #b8cec5; border-radius: 1rem; background: #e5f6ed; color: inherit; text-decoration: none; }
 .community-icon { display: grid; width: 2.75rem; height: 2.75rem; place-items: center; border-radius: .8rem; color: #087a58; background: white; }
 .community-icon svg { width: 1.5rem; height: 1.5rem; }

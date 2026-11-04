@@ -1,7 +1,8 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import CarparkCard from '@/components/CarparkCard.vue'
+import FilterDropdown from '@/components/FilterDropdown.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import api from '@/services/api'
 import { getCommunitySummaries } from '@/services/reviews'
@@ -13,10 +14,27 @@ const route = useRoute()
 const isDemo = import.meta.env.VITE_CARPARK_DATA_MODE === 'sample'
 const destination = computed(() => isDemo ? mockDestination.name : String(route.query.destination || ''))
 const vehicleType = ref('C')
-const maxDistance = ref('1000')
+// Distance and EV filter can come from the URL (e.g. coming back from the map)
+const maxDistance = ref(['250', '500', '1000', '2000', '5000'].includes(String(route.query.radius)) ? String(route.query.radius) : '1000')
 const sortBy = ref('walk')
-const availableOnly = ref(false)
-const evOnly = ref(false)
+// Options for the filter dropdowns (Bootstrap Dropdown, see FilterDropdown.vue)
+const vehicleOptions = [
+  { value: 'C', label: 'Car' },
+  { value: 'Y', label: 'Motorcycle' },
+  { value: 'H', label: 'Heavy vehicle' },
+]
+const distanceOptions = [
+  { value: '250', label: 'Within 250 m' },
+  { value: '500', label: 'Within 500 m' },
+  { value: '1000', label: 'Within 1 km' },
+  { value: '2000', label: 'Within 2 km' },
+  { value: '5000', label: 'Within 5 km' },
+]
+const sortOptions = [
+  { value: 'walk', label: 'Nearest to destination' },
+  { value: 'lots', label: 'Most available lots' },
+]
+const evOnly = ref(route.query.ev === '1')
 const carparks = ref([])
 const communitySummaries = ref(new Map())
 const carparkFavourites = ref(new Map())
@@ -32,20 +50,131 @@ const favouriteMessageIsError = ref(false)
 let latestRequest = 0
 
 const contextQuery = computed(() => ({ ...route.query, destination: destination.value, vehicleType: vehicleType.value }))
+// The map shows the same carparks as this page: same distance and EV filter
+const mapQuery = computed(() => ({
+  ...contextQuery.value,
+  radius: maxDistance.value,
+  ...(evOnly.value ? { ev: '1' } : {}),
+  from: 'results',
+}))
 const results = computed(() => filterAndSortCarparks(carparks.value, {
   vehicleType: vehicleType.value, maxDistance: maxDistance.value,
-  availableOnly: availableOnly.value, evOnly: evOnly.value, sortBy: sortBy.value,
+  evOnly: evOnly.value, sortBy: sortBy.value,
 }))
 const selectedCarparks = computed(() => carparks.value.filter(carpark => selectedIds.value.includes(carpark.id)))
-const updatedLabel = computed(() => updatedAt.value ? updatedAt.value.toLocaleString('en-SG') : '')
+// Time only (e.g. "4:15 pm"): the data is always from today
+const updatedLabel = computed(() => updatedAt.value
+  ? updatedAt.value.toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit' })
+  : '')
+
+// ---------------------------------------------------------------------------
+// Real walking time (same OneMap route as the details page) for the carparks
+// shown first. The list appears immediately; walking times fill in as they
+// arrive, a few at a time, so the page stays fast.
+// ---------------------------------------------------------------------------
+const WALKING_FIRST = 6 // fetched straight away (the first row or two)
+const WALKING_PARALLEL = 3
+const walkingRequested = new Set()
+let walkingQueue = []
+let walkingActive = 0
+let walkingBatch = 0
+
+function resetWalking() {
+  walkingBatch += 1
+  walkingRequested.clear()
+  walkingQueue = []
+}
+
+function setWalking(id, route) {
+  carparks.value = carparks.value.map(carpark => carpark.id === id
+    ? { ...carpark, walkingTime: route.walkingTime, walkingDistance: route.walkingDistance }
+    : carpark)
+}
+
+async function runWalkingQueue() {
+  while (walkingActive < WALKING_PARALLEL && walkingQueue.length) {
+    const { carpark, batch } = walkingQueue.shift()
+    walkingActive += 1
+    api.get('/locations/walking-route', {
+      params: {
+        originLat: carpark.latitude,
+        originLng: carpark.longitude,
+        destLat: route.query.latitude,
+        destLng: route.query.longitude,
+      },
+    })
+      .then(({ data }) => {
+        if (batch === walkingBatch && data?.walkingTime != null) setWalking(carpark.id, data)
+      })
+      .catch(() => {
+        // Keep "—" for this card; the details page can still show the route
+      })
+      .finally(() => {
+        walkingActive -= 1
+        runWalkingQueue()
+      })
+  }
+}
+
+function requestWalking(carpark) {
+  if (!carpark || isDemo || !route.query.latitude || !route.query.longitude) return
+  if (carpark.walkingTime != null || walkingRequested.has(carpark.id)) return
+  if (carpark.latitude == null || carpark.longitude == null) return
+  walkingRequested.add(carpark.id)
+  walkingQueue.push({ carpark, batch: walkingBatch })
+  runWalkingQueue()
+}
+
+// The first few cards get walking data straight away (load, filter, sort)...
+watch(results, async (list) => {
+  list.slice(0, WALKING_FIRST).forEach(requestWalking)
+  // Re-check which cards are on screen (observe() reports each card's current state),
+  // e.g. after Refresh or a vehicle change, and forget cards that are no longer shown.
+  await nextTick()
+  if (!cardObserver) return
+  cardObserver.disconnect()
+  for (const element of [...observedCards.keys()]) {
+    if (element.isConnected) cardObserver.observe(element)
+    else observedCards.delete(element)
+  }
+})
+
+// ...and every other card gets it when it scrolls into view, so any card the
+// user can see shows the same walking distance as its details page.
+let cardObserver = null
+const observedCards = new Map() // element -> carpark id
+onMounted(() => {
+  if (!('IntersectionObserver' in window)) return
+  cardObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue
+      const id = observedCards.get(entry.target)
+      requestWalking(results.value.find(carpark => carpark.id === id))
+    }
+  }, { rootMargin: '200px 0px' }) // start a little before the card appears
+  for (const element of observedCards.keys()) cardObserver.observe(element)
+})
+onBeforeUnmount(() => cardObserver?.disconnect())
+
+// Template ref for each card wrapper
+function trackCard(element, id) {
+  if (!element) return
+  if (observedCards.get(element) === id) return
+  observedCards.set(element, id)
+  cardObserver?.observe(element)
+}
+
+// Users may select any number, but Compare only works with 2 to 3 carparks
+const MAX_COMPARE = 3
+const tooManySelected = computed(() => selectedIds.value.length > MAX_COMPARE)
+const canCompare = computed(() => selectedIds.value.length >= 2 && !tooManySelected.value)
 
 function toggleCompare(id) {
   if (selectedIds.value.includes(id)) selectedIds.value = selectedIds.value.filter(value => value !== id)
-  else if (selectedIds.value.length < 3) selectedIds.value.push(id)
+  else selectedIds.value.push(id)
 }
 function resetFilters() {
   maxDistance.value = '1000'
-  availableOnly.value = false
   evOnly.value = false
   sortBy.value = 'walk'
 }
@@ -132,6 +261,7 @@ async function loadCarparks() {
   carparks.value = []
   selectedIds.value = []
   updatedAt.value = null
+  resetWalking()
   try {
     if (isDemo) {
       carparks.value = normaliseCarparks(mockCarparks.map(row => {
@@ -200,7 +330,7 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
         <button class="btn favourite-button" type="button" :disabled="savingFavourite || favouriteSaved" @click="saveDestination">
           {{ savingFavourite ? 'Adding…' : favouriteSaved ? 'Added to favourites' : 'Add to favourites' }}
         </button>
-        <RouterLink class="btn btn-success explore-button" :to="{ name: 'map', query: contextQuery }">Explore map ↗</RouterLink>
+        <RouterLink class="btn btn-success explore-button" :to="{ name: 'map', query: mapQuery }">Explore map ↗</RouterLink>
       </div>
     </div>
 
@@ -208,7 +338,6 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
       {{ favouriteMessage }}
     </div>
 
-    <div v-if="!isDemo" class="demo-notice mb-4">Source: LTA DataMall · Data is cached for up to 60 seconds. Refresh to retrieve the latest available response.</div>
     <div v-if="isDemo" class="demo-notice mb-4" role="note">
       <strong>Sample results</strong> · Showing the project's Suntec sample data. Lot counts and walking estimates are not live.
     </div>
@@ -216,39 +345,26 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
     <div class="filter-panel mb-4">
       <div class="row g-3 align-items-end">
         <div class="col-sm-6 col-lg-3">
-          <label for="vehicle" class="form-label">Vehicle type</label>
-          <select id="vehicle" v-model="vehicleType" class="form-select" @change="loadCarparks">
-            <option value="C">Car</option><option value="Y">Motorcycle</option><option value="H">Heavy vehicle</option>
-          </select>
+          <FilterDropdown id="vehicle" v-model="vehicleType" label="Vehicle type" :options="vehicleOptions" @change="loadCarparks" />
         </div>
         <div class="col-sm-6 col-lg-3">
-          <label for="distance" class="form-label">Nearby radius (straight-line)</label>
-          <select id="distance" v-model="maxDistance" class="form-select">
-            <option value="5000">Within 5 km</option><option value="250">Within 250 m</option>
-            <option value="500">Within 500 m</option><option value="1000">Within 1 km</option><option value="2000">Within 2 km</option>
-          </select>
+          <FilterDropdown id="distance" v-model="maxDistance" label="Distance" :options="distanceOptions" />
         </div>
         <div class="col-sm-6 col-lg-3">
-          <label for="sort" class="form-label">Sort results</label>
-          <select id="sort" v-model="sortBy" class="form-select">
-            <option value="walk">Nearest to destination</option><option value="lots">Most available lots</option>
-          </select>
+          <FilterDropdown id="sort" v-model="sortBy" label="Sort results" :options="sortOptions" />
         </div>
-        <div class="col-sm-6 col-lg-3 pb-1 d-grid gap-2">
-          <label class="d-flex align-items-center gap-2">
-            <input v-model="availableOnly" type="checkbox" class="form-check-input mt-0" />
-            <span class="filter-parking-icon" aria-hidden="true">P</span>
-            Available Lots
-          </label>
-          <label class="d-flex align-items-center gap-2">
-            <input v-model="evOnly" type="checkbox" class="form-check-input mt-0" />
-            <span class="filter-leaf-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
+        <div class="col-sm-6 col-lg-3">
+          <span class="form-label d-block" id="show-only-label">Show only</span>
+          <!-- Toggle chip: same colours and wording as the "EV Charging" tag on each card -->
+          <div class="filter-chips" role="group" aria-labelledby="show-only-label">
+            <button type="button" class="filter-chip chip-ev" :class="{ on: evOnly }"
+              :aria-pressed="evOnly ? 'true' : 'false'" @click="evOnly = !evOnly">
+              <svg class="chip-leaf" viewBox="0 0 24 24" aria-hidden="true">
                 <path fill="currentColor" d="M17 8C8 10 5.9 16.17 3.82 21.34l1.89.66l.95-2.3c.48.17.98.3 1.34.3C19 20 22 3 22 3c-1 2-8 2.25-13 3.25S2 11.5 2 13.5s1.75 3.75 1.75 3.75C7 8 17 8 17 8Z" />
               </svg>
-            </span>
-            EV Charging Available
-          </label>
+              EV Charging
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -256,8 +372,11 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <h2 class="h6 mb-0" aria-live="polite">{{ loading ? 'Finding carparks…' : `${results.length} carpark${results.length === 1 ? '' : 's'} found` }}</h2>
       <div class="d-flex align-items-center gap-3">
-        <span v-if="!isDemo && updatedLabel" class="small text-secondary">Retrieved {{ updatedLabel }}</span>
-        <button type="button" class="btn btn-sm btn-link text-success" :disabled="loading" @click="loadCarparks">{{ isDemo ? 'Reload samples' : 'Refresh availability' }}</button>
+        <span v-if="!isDemo" class="small text-secondary">Live data from LTA DataMall<template v-if="updatedLabel"> · Updated {{ updatedLabel }}</template></span>
+        <button type="button" class="btn refresh-button" :disabled="loading" @click="loadCarparks">
+          <svg viewBox="0 0 24 24" aria-hidden="true" :class="{ spinning: loading }"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5" /></svg>
+          {{ isDemo ? 'Reload samples' : 'Refresh availability' }}
+        </button>
       </div>
     </div>
 
@@ -273,20 +392,23 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
       <button class="btn btn-outline-success" type="button" @click="resetFilters">Reset filters</button>
     </div>
     <TransitionGroup v-else name="card-list" tag="div" class="row g-4">
-      <div v-for="carpark in results" :key="carpark.id" class="col-md-6 col-xl-4">
+      <div v-for="carpark in results" :key="carpark.id" :ref="element => trackCard(element, carpark.id)" class="col-12 col-md-6 col-lg-4">
         <CarparkCard :carpark="carpark" :community-summary="communitySummaries.get(carpark.id)"
           :favourite="carparkFavourites.has(carpark.id)" :favourite-saving="favouriteSavingIds.includes(carpark.id)"
           :selected="selectedIds.includes(carpark.id)"
-          :selection-disabled="selectedIds.length >= 3" :context-query="contextQuery"
+          :selection-disabled="false" :context-query="contextQuery"
           @toggle-compare="toggleCompare" @toggle-favourite="toggleCarparkFavourite" />
       </div>
     </TransitionGroup>
-    <p class="small text-secondary mt-3">Nearby distance is straight-line distance to your destination, not a walking route. Live walking estimates require a separate routing service. Lot availability may change before arrival.</p>
+    <p class="small text-secondary mt-3">Lot availability may change before you arrive. Kindly tap <strong>Refresh availability</strong> for the latest numbers.</p>
 
-    <aside v-if="selectedIds.length" class="compare-tray mt-4" aria-label="Selected carparks">
+    <aside v-if="selectedIds.length" class="compare-tray mt-4" :class="{ 'too-many': tooManySelected }" aria-label="Selected carparks">
       <div>
-        <strong aria-live="polite">{{ selectedIds.length }} of 3 selected</strong>
-        <p class="small mb-2 mt-1">Select at least 2 carparks to compare. Selections remain when filters change.</p>
+        <strong aria-live="polite" :class="{ 'compare-count-over': tooManySelected }">{{ selectedIds.length }} / {{ MAX_COMPARE }} selected</strong>
+        <p v-if="tooManySelected" class="small mb-2 mt-1 compare-limit" role="alert">
+          You can compare up to {{ MAX_COMPARE }} carparks at a time. Please remove {{ selectedIds.length - MAX_COMPARE }} to continue.
+        </p>
+        <p v-else class="small mb-2 mt-1">Select 2 to {{ MAX_COMPARE }} carparks to compare.</p>
         <div class="d-flex flex-wrap gap-2">
           <button v-for="carpark in selectedCarparks" :key="carpark.id" type="button" class="selection-chip"
             :aria-label="`Remove ${carpark.name} from comparison`" @click="toggleCompare(carpark.id)">{{ carpark.name }} ×</button>
@@ -294,9 +416,10 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
       </div>
       <div class="d-flex align-items-center gap-3">
         <button type="button" class="btn btn-link text-success" @click="selectedIds = []">Clear</button>
-        <RouterLink v-if="selectedIds.length >= 2" class="btn btn-success text-nowrap"
+        <RouterLink v-if="canCompare" class="btn btn-success text-nowrap"
           :to="{ name: 'compare', query: { ...contextQuery, ids: selectedIds.join(',') } }">Compare ({{ selectedIds.length }}) →</RouterLink>
-        <button v-else class="btn btn-success text-nowrap" disabled>Compare (1)</button>
+        <button v-else class="btn btn-success text-nowrap" type="button" disabled
+          :title="tooManySelected ? `You can compare up to ${MAX_COMPARE} carparks` : 'Select at least 2 carparks'">Compare ({{ selectedIds.length }})</button>
       </div>
     </aside>
     </div>
@@ -314,16 +437,31 @@ h1 { font-size: clamp(2rem, 5vw, 3.25rem); }
 .back-link:hover { color: #055c42; text-decoration: underline; }
 .favourite-button { min-width: 10.5rem; border: 1.5px solid #174f40; color: #123d32; background: white; font-weight: 700; }
 .favourite-button:hover:not(:disabled) { border-color: #0a9e70; color: #06271f; background: #e7f8f0; }
+.refresh-button { display: inline-flex; align-items: center; gap: .4rem; padding: .45rem .9rem; border: 1.5px solid #174f40; border-radius: .7rem; color: #123d32; background: white; font-size: .875rem; font-weight: 700; }
+.refresh-button:hover:not(:disabled) { border-color: #0a9e70; color: #06271f; background: #e7f8f0; }
+.refresh-button svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.refresh-button svg.spinning { animation: refresh-spin .8s linear infinite; }
+@keyframes refresh-spin { to { transform: rotate(360deg); } }
 .explore-button { min-width: 9.5rem; border-color: #07875f; color: #06271f; background: #2cd790; font-weight: 700; }
 .explore-button:hover { border-color: #067651; color: #06271f; background: #25c985; }
 .demo-notice { padding: .85rem 1rem; background: #eef3f8; color: #40576a; border-radius: .65rem; font-size: .85rem; }
 .filter-panel { padding: 1.4rem 1.5rem; border: 2px solid #174f40; border-radius: 1.3rem; background: white; }
 .filter-panel .form-select { min-height: 3.2rem; border: 1.5px solid #174f40; border-radius: .8rem; }
-.filter-parking-icon, .filter-leaf-icon { display: inline-grid; width: 1.55rem; height: 1.55rem; flex: 0 0 1.55rem; place-items: center; border-radius: .45rem; color: #073f32; background: #2cd790; font-size: .82rem; font-weight: 800; }
-.filter-leaf-icon { border-radius: 50%; color: #15803d; background: #dcfce7; }
-.filter-leaf-icon svg { width: 1rem; height: 1rem; }
+/* "Show only" toggle chip, styled like the card's "EV Charging" tag */
+.filter-chips { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+/* Same height as the dropdowns next to it */
+.filter-chips .filter-chip { min-height: 3.2rem; padding-inline: 1rem; border-radius: .8rem; font-size: .9rem; }
+.filter-chip { display: inline-flex; align-items: center; gap: .35rem; min-height: 2.3rem; padding: .3rem .65rem; border: 1.5px solid #b8cec5; border-radius: 2rem; color: #40534c; background: white; font-size: .78rem; font-weight: 750; white-space: nowrap; transition: background .15s, border-color .15s, color .15s; }
+.filter-chip:hover { border-color: #0a9e70; }
+.filter-chip:focus-visible { outline: 2px solid #087a58; outline-offset: 2px; }
+.chip-leaf { width: 1rem; height: 1rem; color: #15803d; }
+/* Selected: same colours as the matching card tag */
+.chip-ev.on { border-color: #15803d; color: #15803d; background: #dcfce7; }
 .form-label { font-size: .8rem; font-weight: 600; }
 .state-panel { text-align: center; padding: 3rem 1rem; border: 1px dashed #becdc6; border-radius: 1rem; }
+.compare-tray.too-many { border-color: #e7a3a3; background: #fff5f5; }
+.compare-limit { color: #a02f2f; font-weight: 650; }
+.compare-count-over { color: #a02f2f; }
 .compare-tray { position: sticky; bottom: 1rem; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem; border: 1px solid #adccbf; border-radius: 1rem; background: #f0faf5; box-shadow: 0 8px 30px #173e3015; }
 .selection-chip { background: white; border: 1px solid #adccbf; border-radius: 2rem; padding: .25rem .65rem; font-size: .8rem; color: #0f5c4d; }
 @media (max-width: 767px) { .compare-tray { position: static; align-items: stretch; flex-direction: column; } }
