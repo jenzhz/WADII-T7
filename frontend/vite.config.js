@@ -9,6 +9,10 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.spec.js'],
+  },
   server: {
     port: 5173,
     proxy: {

@@ -6,12 +6,14 @@ import { getMyReviews, getUserReviews } from '@/services/reviews'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import StarRating from '@/components/StarRating.vue'
 import ProfileReviewMap from '@/components/ProfileReviewMap.vue'
+import ContributorLevelsDialog from '@/components/ContributorLevelsDialog.vue'
 
 const route = useRoute()
 const isOwnProfile = computed(() => !route.params.userId)
 const user = ref(null)
 const reviews = ref([])
 const contributor = ref({ helpedDrivers: 0, points: 0, level: 'New Contributor' })
+const levelsDialog = ref(null)
 const carparks = ref([])
 const loading = ref(true)
 const error = ref('')
@@ -137,7 +139,7 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
             <small v-if="user.createdAt">Member since {{ formattedDate(user.createdAt) }}</small>
           </div>
           <div class="profile-stats">
-            <div class="contributor-score"><span>{{ contributor.level }}</span><strong>{{ contributor.points }} pts</strong><small>Helped {{ contributor.helpedDrivers }} {{ contributor.helpedDrivers === 1 ? 'driver' : 'drivers' }}</small></div>
+            <button class="contributor-score" type="button" aria-haspopup="dialog" :aria-label="`View contributor levels. ${contributor.level}, ${contributor.points} points`" @click="levelsDialog.open(contributor, user.name, isOwnProfile)"><span>{{ contributor.level }}</span><strong>{{ contributor.points }} pts</strong><small>Helped {{ contributor.helpedDrivers }} {{ contributor.helpedDrivers === 1 ? 'driver' : 'drivers' }}</small><span class="levels-hint">View levels →</span></button>
             <div class="review-count"><strong>{{ reviews.length }}</strong><span>{{ reviews.length === 1 ? 'Review shared' : 'Reviews shared' }}</span></div>
           </div>
         </section>
@@ -186,6 +188,7 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
         </section>
       </template>
     </div>
+    <ContributorLevelsDialog ref="levelsDialog" />
   </section>
 </template>
 
@@ -211,6 +214,9 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
 .review-count strong { font-size: 2rem; line-height: 1; }
 .review-count span { font-size: .85rem; }
 .profile-stats { display: flex; align-items: stretch; gap: .75rem; margin-left: auto; }.profile-stats .review-count { min-width: 7rem; margin: 0; padding: .75rem; justify-content: center; border-left: 1px solid #d6e5df; }.contributor-score { display: grid; min-width: 11rem; align-content: center; padding: .65rem .85rem; border-radius: .85rem; color: #073f32; background: #e7f8f0; text-align: center; }.contributor-score span { color: #087a58; font-size: .72rem; font-weight: 850; text-transform: uppercase; }.contributor-score strong { margin: .1rem 0; font-size: 1.35rem; }.contributor-score small { color: #52665d; }
+.contributor-score { border: 1px solid #b8decc; cursor: pointer; }
+.contributor-score:hover { border-color: #087a58; background: #dff7ec; }
+.contributor-score .levels-hint { margin-top: .4rem; font-size: .7rem; font-weight: 750; text-transform: none; }
 .state-panel { padding: 3rem 1rem; border: 2px dashed #9ebfb3; border-radius: 1.25rem; background: #ffffffbb; text-align: center; }
 .review-list { display: grid; gap: 1rem; }
 .review-card header, .review-score { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }

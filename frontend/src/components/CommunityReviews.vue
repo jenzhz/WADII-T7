@@ -12,10 +12,12 @@ import {
   updateReview,
 } from '@/services/reviews'
 import StarRating from './StarRating.vue'
+import ContributorLevelsDialog from './ContributorLevelsDialog.vue'
 import { PARKING_DIFFICULTIES, parkingDifficultyDetails } from '@/utils/parkingDifficulty'
 
 const props = defineProps({ carparkId: { type: String, required: true }, hasEvCharger: { type: Boolean, default: false } })
 const user = ref(getCurrentUser())
+const levelsDialog = ref(null)
 const reviews = ref([])
 const summary = ref({ reviewCount: 0, overallRating: null })
 const loading = ref(true)
@@ -224,11 +226,15 @@ watch(() => props.carparkId, loadReviews)
             <div>
               <div class="review-author-line">
                 <h3><RouterLink class="profile-link" :to="{ name: 'user-profile', params: { userId: review.user._id } }">{{ review.user.name }}</RouterLink></h3>
-                <span
+                <button
+                  type="button"
                   class="contributor-badge"
                   :class="contributorClass(review.user.contributor?.level)"
-                  :title="`${review.user.contributor?.points || 0} points · Helped ${review.user.contributor?.helpedDrivers || 0} drivers`"
-                ><span aria-hidden="true">{{ contributorIcon(review.user.contributor?.level) }}</span> {{ review.user.contributor?.level || 'New Contributor' }}</span>
+                  aria-haspopup="dialog"
+                  :aria-label="`View contributor levels for ${review.user.name}. ${review.user.contributor?.level || 'New Contributor'}`"
+                  :title="`${review.user.contributor?.points || 0} points · View contributor levels`"
+                  @click="levelsDialog.open(review.user.contributor, review.user.name, isMine(review))"
+                ><span aria-hidden="true">{{ contributorIcon(review.user.contributor?.level) }}</span> {{ review.user.contributor?.level || 'New Contributor' }}</button>
                 <StarRating :model-value="review.overallRating" readonly />
               </div>
               <small>{{ formattedDate(review.updatedAt) }}<span v-if="review.updatedAt !== review.createdAt"> · edited</span></small>
@@ -261,6 +267,7 @@ watch(() => props.carparkId, loadReviews)
       </div>
     </template>
   </section>
+  <ContributorLevelsDialog ref="levelsDialog" />
 </template>
 
 <style scoped>
@@ -272,6 +279,9 @@ watch(() => props.carparkId, loadReviews)
 .review-list { display: grid; gap: 1rem; margin-top: 1.5rem; }.review-card { padding: 1.4rem; border: 1.5px solid #b8cec5; border-radius: 1rem; }.review-author-line { display: flex; align-items: center; gap: .65rem; margin-bottom: .15rem; }.review-card header h3 { margin: 0; font-size: 1rem; }.review-card header small { color: #6c7d76; }.difficulty-badge { display: inline-flex; align-items: center; width: fit-content; padding: .3rem .65rem; border-radius: 2rem; font-size: .75rem; font-weight: 800; white-space: nowrap; }.difficulty-beginner-friendly { color: #087a58; background: #dff7ec; }.difficulty-moderate { color: #805b00; background: #fff0bf; }.difficulty-challenging { color: #a02f2f; background: #fde2e2; }.review-card > .difficulty-badge { margin-top: 1rem; }.review-comment { margin: 1rem 0; font-size: 1.05rem; }.review-ratings { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0; }.review-ratings div { display: flex; gap: .35rem; padding: .3rem .55rem; border-radius: 2rem; background: #edf3f1; font-size: .75rem; }.review-ratings dt { font-weight: 500; }.review-ratings dd { margin: 0; font-weight: 750; }.danger { color: #b33131 !important; }
 .contributor-badge { display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .55rem; border: 1px solid transparent; border-radius: 2rem; font-size: .68rem; font-weight: 800; line-height: 1.15; white-space: nowrap; }.contributor-new-contributor { color: #52665d; border-color: #c8d8d1; background: #f1f5f3; }.contributor-helpful-contributor { color: #087a58; border-color: #a8dfc8; background: #e7f8f0; }.contributor-trusted-contributor { color: #655000; border-color: #e5cf79; background: #fff5c9; }.contributor-community-champion { color: #7c3f00; border-color: #efb56e; background: #fff0d8; }
 .helpful-button { display: inline-flex; align-items: center; gap: .35rem; margin-top: .9rem; padding: .45rem .7rem; border: 1px solid #b8cec5; border-radius: 2rem; color: #52606d; background: white; font-size: .78rem; font-weight: 750; }.helpful-button:hover:not(:disabled), .helpful-button.active { border-color: #087a58; color: #087a58; background: #e7f8f0; }.helpful-button:disabled { cursor: not-allowed; opacity: .55; }.helpful-button strong { display: grid; min-width: 1.3rem; height: 1.3rem; padding: 0 .25rem; place-items: center; border-radius: 1rem; color: white; background: #087a58; font-size: .68rem; }
+.contributor-badge { cursor: pointer; }
+.contributor-badge:hover { box-shadow: 0 0 0 2px #087a5825; }
+.review-author-line { flex-wrap: wrap; }
 .replies { margin-top: 1.25rem; padding: 1rem 0 0 1.25rem; border-left: 3px solid #d8eee5; }.replies h4 { font-size: .9rem; }.replies h4 span { color: #71817b; }.reply { position: relative; margin: .75rem 0; padding: .8rem; border-radius: .65rem; background: #f6faf8; }.reply > div:first-child { display: flex; justify-content: space-between; }.reply small { color: #71817b; }.reply p { margin: .4rem 0 0; }.reply-actions { display: flex; justify-content: end; gap: .5rem; }.reply-form { display: flex; gap: .5rem; margin-top: .75rem; }.reply-form button { padding: .5rem .9rem; border: 0; border-radius: .6rem; color: white; background: #087a58; font-weight: 700; }
 .review-state, .notice { margin-top: 1.25rem; padding: 1.25rem; border-radius: .8rem; background: #f2f7f5; text-align: center; }.notice { text-align: left; }.success { color: #075d45; background: #e5f8ef; }.error { color: #9d2929; background: #fdeaea; }
 @media (max-width: 700px) { .community-reviews { padding: 1.2rem; }.community-heading, .review-card header { flex-direction: column; }.rating-summary { grid-template-columns: 1fr; }.overall-score { padding-bottom: 1rem; border-right: 0; border-bottom: 1px solid #c8ded5; }.rating-fields, .difficulty-options { grid-template-columns: 1fr; }.required-rating { align-items: flex-start; flex-direction: column; grid-column: auto; }.rating-fields label { align-items: start; flex-direction: column; }.reply-form { flex-direction: column; } }
