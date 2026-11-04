@@ -2,7 +2,7 @@ import api from './api'
 
 export async function getMyReviews() {
   const response = await api.get('/reviews/mine')
-  return response.data.reviews
+  return response.data
 }
 
 export async function getUserReviews(userId) {
@@ -33,6 +33,11 @@ export async function updateReview(reviewId, payload) {
 
 export async function deleteReview(reviewId) {
   await api.delete(`/reviews/${reviewId}`)
+}
+
+export async function toggleReviewHelpful(reviewId) {
+  const { data } = await api.put(`/reviews/${reviewId}/helpful`)
+  return data
 }
 
 export async function createReply(reviewId, comment) {

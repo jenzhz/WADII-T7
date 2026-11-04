@@ -10,6 +10,7 @@
     "seed:community": "node scripts/seedCommunity.js",
     "seed:community:clear": "node scripts/seedCommunity.js --clear",
     "migrate:review-pricing": "node scripts/migrateReviewPricing.js",
+    "migrate:review-multiple": "node scripts/migrateReviewMultiple.js",
     "rates:build": "node scripts/buildRates.js",
     "rates:check": "node scripts/checkRateMatches.js"
   },

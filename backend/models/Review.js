@@ -25,12 +25,16 @@ const reviewSchema = new mongoose.Schema(
     entranceExitAccessibility: ratingField(),
     signage: ratingField(),
     pricing: ratingField(),
+    parkingDifficulty: {
+      type: String,
+      enum: ['beginner-friendly', 'moderate', 'challenging'],
+      default: null,
+    },
+    helpfulBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     comment: { type: String, required: true, trim: true, minlength: 1, maxlength: 2000 },
     replies: { type: [replySchema], default: [] },
   },
   { timestamps: true },
 )
-
-reviewSchema.index({ user: 1, carparkId: 1 }, { unique: true })
 
 export default mongoose.model('Review', reviewSchema)

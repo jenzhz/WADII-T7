@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router' 
 import api from '@/services/api'
 
@@ -12,48 +12,6 @@ const results = ref([])
 const selectedDestination = ref(null)
 
 const vehicleType = ref('C')
-const favourites = ref([])
-const loadingFavourites = ref(true)
-const favouritesError = ref('')
-const destinationFavourites = computed(() => favourites.value.filter(favourite => favourite.type === 'destination').slice(0, 3))
-const carparkFavourites = computed(() => favourites.value.filter(favourite => favourite.type === 'carpark').slice(0, 3))
-
-async function loadFavourites() {
-  loadingFavourites.value = true
-  favouritesError.value = ''
-  try {
-    const response = await api.get('/favourites')
-    favourites.value = response.data.favourites
-  } catch (error) {
-    favouritesError.value = error.response?.data?.message || 'Unable to load your favourites.'
-  } finally {
-    loadingFavourites.value = false
-  }
-}
-
-function searchFavourite(favourite) {
-  selectDestination({
-    SEARCHVAL: favourite.label,
-    LATITUDE: favourite.latitude,
-    LONGITUDE: favourite.longitude,
-  })
-  goToResults()
-}
-
-function favouriteDetailsLink(favourite) {
-  const lotType = favourite.carparkId?.split(':').at(-1)
-  return {
-    name: 'carpark-details',
-    params: { id: favourite.carparkId },
-    query: {
-      name: favourite.label,
-      lotType: ['C', 'Y', 'H'].includes(lotType) ? lotType : 'C',
-      from: 'search',
-    },
-  }
-}
-
-onMounted(loadFavourites)
 
 function saveSearch() {
   localStorage.setItem(SEARCH_KEY, JSON.stringify({
@@ -172,45 +130,6 @@ function goToResults() {
         </div>
       </form>
 
-      <section class="home-favourites" aria-labelledby="home-favourites-heading">
-        <div class="favourites-heading">
-          <h2 id="home-favourites-heading">My favourites</h2>
-          <RouterLink to="/favourites">View all →</RouterLink>
-        </div>
-        <p v-if="loadingFavourites" class="favourites-state" role="status">Loading your favourites…</p>
-        <div v-else-if="favouritesError" class="favourites-state" role="alert">
-          <p>{{ favouritesError }}</p>
-          <button class="btn btn-outline-success" type="button" @click="loadFavourites">Try again</button>
-        </div>
-        <div v-else-if="!favourites.length" class="favourites-state">
-          <p class="mb-0">No favourites yet. Save a destination or carpark to find it here next time.</p>
-        </div>
-        <template v-else>
-          <section class="favourite-group" aria-labelledby="home-destinations-heading">
-            <h3 id="home-destinations-heading">Favourite destinations</h3>
-            <div v-if="destinationFavourites.length" class="favourites-grid">
-              <article v-for="favourite in destinationFavourites" :key="favourite.id" class="favourite-card">
-                <span class="favourite-type"><span aria-hidden="true">♥</span> Destination</span>
-                <h4>{{ favourite.label }}</h4>
-                <button class="favourite-action" type="button" @click="searchFavourite(favourite)">Find parking →</button>
-              </article>
-            </div>
-            <p v-else class="favourite-group-empty">No saved destinations yet.</p>
-          </section>
-          <section class="favourite-group" aria-labelledby="home-carparks-heading">
-            <h3 id="home-carparks-heading">Favourite carparks</h3>
-            <div v-if="carparkFavourites.length" class="favourites-grid">
-              <article v-for="favourite in carparkFavourites" :key="favourite.id" class="favourite-card">
-                <span class="favourite-type"><span aria-hidden="true">♥</span> Carpark</span>
-                <h4>{{ favourite.label }}</h4>
-                <RouterLink class="favourite-action" :to="favouriteDetailsLink(favourite)">View carpark →</RouterLink>
-              </article>
-            </div>
-            <p v-else class="favourite-group-empty">No saved carparks yet.</p>
-          </section>
-        </template>
-      </section>
-
       <RouterLink class="community-feature" to="/community">
         <span class="community-icon" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
@@ -277,22 +196,6 @@ function goToResults() {
 .search-button:disabled { opacity: .5; }
 .clear-button { padding-inline: .8rem; border: 1px solid #82958e; color: #40534c; background: white; }
 
-.home-favourites { margin-top: 2.25rem; }
-.favourites-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
-.favourites-heading h2 { margin: 0; color: #073f32; font-size: 1.4rem; }
-.favourites-heading a, .favourite-action { color: #087a58; font-weight: 750; text-decoration: none; }
-.favourites-heading a:hover, .favourite-action:hover { text-decoration: underline; }
-.favourite-group + .favourite-group { margin-top: 1.5rem; }
-.favourite-group > h3 { margin: 0 0 .85rem; color: #173e30; font-size: 1.05rem; }
-.favourite-group-empty { margin: 0; padding: 1rem; border: 1px dashed #9ebfb3; border-radius: .85rem; color: #63716a; background: #ffffff99; }
-.favourites-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
-.favourite-card { display: flex; flex-direction: column; align-items: flex-start; padding: 1.4rem; border: 2px solid #174f40; border-radius: 1.3rem; background: white; }
-.favourite-type { display: inline-flex; align-items: center; gap: .4rem; color: #63716a; font-size: .8rem; }
-.favourite-type span { color: #c92f54; font-size: 1.1rem; }
-.favourite-card h4 { margin: .6rem 0 1.25rem; font-size: 1.1rem; overflow-wrap: anywhere; }
-.favourite-action { margin-top: auto; padding: 0; border: 0; background: transparent; text-align: left; }
-.favourites-state { margin: 0; padding: 1.5rem; border: 1.5px dashed #9ebfb3; border-radius: 1rem; color: #52665d; background: #ffffffbb; }
-
 .community-feature { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 1rem; margin-top: 2rem; padding: 1.25rem 1.5rem; border: 1px solid #b8cec5; border-radius: 1rem; background: #e5f6ed; color: inherit; text-decoration: none; }
 .community-icon { display: grid; width: 2.75rem; height: 2.75rem; place-items: center; border-radius: .8rem; color: #087a58; background: white; }
 .community-icon svg { width: 1.5rem; height: 1.5rem; }
@@ -306,7 +209,6 @@ function goToResults() {
   .route-graphic { inset-inline-start: 62%; opacity: .7; }
   .search-card { grid-template-columns: 1fr 1fr; }
   .destination-field { grid-column: 1 / -1; }
-  .favourites-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 575px) {
@@ -317,7 +219,6 @@ function goToResults() {
   .search-card { grid-template-columns: 1fr; padding: 1.15rem; }
   .destination-field { grid-column: auto; }
   .search-actions { margin-top: 0; }
-  .favourites-grid { grid-template-columns: 1fr; }
   .community-feature { grid-template-columns: auto minmax(0, 1fr); padding: 1.25rem; }
   .community-cta { grid-column: 2; white-space: normal; }
 }

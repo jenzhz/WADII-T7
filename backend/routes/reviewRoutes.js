@@ -9,6 +9,7 @@ import {
   getCommunitySummaries,
   getMyReviews,
   getUserReviews,
+  toggleReviewHelpful,
   updateReply,
   updateReview,
 } from '../controllers/reviewController.js'
@@ -22,6 +23,7 @@ router.get('/carpark/:carparkId', getCarparkReviews)
 router.post('/', requireAuth, createReview)
 router.put('/:reviewId', requireAuth, updateReview)
 router.delete('/:reviewId', requireAuth, deleteReview)
+router.put('/:reviewId/helpful', requireAuth, toggleReviewHelpful)
 router.post('/:reviewId/replies', requireAuth, createReply)
 router.put('/:reviewId/replies/:replyId', requireAuth, updateReply)
 router.delete('/:reviewId/replies/:replyId', requireAuth, deleteReply)
