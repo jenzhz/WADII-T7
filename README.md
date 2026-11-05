@@ -1,4 +1,4 @@
-# CarparkCompare SG — Team 7
+# CarparkCompare SG - Team 7
 
 CarparkCompare SG helps drivers compare parking near a Singapore destination using current lot availability, walking routes, estimated parking costs and community experiences.
 
@@ -11,7 +11,7 @@ CarparkCompare SG helps drivers compare parking near a Singapore destination usi
 | API health through the website | https://ccsg-frontend.vercel.app/api/health |
 | Source repository | https://github.com/jenzhz/WADII-T7 |
 | Development / deployed branch | `dev` |
-| Presentation video | **Pending — add the final public/unlisted YouTube URL before submission** |
+| Presentation video | https://youtu.be/NLTt3UMQ_JU |
 
 The frontend entry file is `frontend/index.html`, served at the website's root URL. Signed-out visitors are directed to `/login`; signing in opens the search homepage. The backend is an API, so its bare `/` address is not a website homepage.
 
