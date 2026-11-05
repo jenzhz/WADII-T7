@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { getCurrentUser } from '@/services/auth'
 import {
   createReply,
@@ -26,6 +26,7 @@ const error = ref('')
 const message = ref('')
 const showForm = ref(false)
 const editingReviewId = ref(null)
+const formEl = ref(null)
 const replyDrafts = reactive({})
 const editingReply = ref(null)
 const editReplyText = ref('')
@@ -48,7 +49,19 @@ function apiMessage(err, fallback) {
   return err.response?.data?.message || fallback
 }
 
+// Re-read who is logged in. The page may have been opened while another
+// account was logged in (e.g. switching test accounts in another tab).
+function refreshUser() { user.value = getCurrentUser() }
+
+// Lists what is still missing, so a greyed-out button is never a mystery.
+const missingFields = computed(() => [
+  !form.overallRating && 'overall rating',
+  !form.parkingDifficulty && 'how easy it is to park',
+  !form.comment.trim() && 'a written review',
+].filter(Boolean))
+
 async function loadReviews() {
+  refreshUser()
   loading.value = true
   error.value = ''
   try {
@@ -70,6 +83,12 @@ function startReview(review = null) {
   }
   showForm.value = true
   message.value = ''
+  // The form sits above the review list, so bring it into view
+  // (otherwise clicking Edit on a review further down looks like nothing happened).
+  nextTick(() => {
+    formEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    formEl.value?.querySelector('textarea')?.focus({ preventScroll: true })
+  })
 }
 
 function cancelReview() {
@@ -159,11 +178,17 @@ function contributorIcon(level) {
 }
 
 onMounted(async () => {
+  window.addEventListener('auth-changed', refreshUser)
+  window.addEventListener('storage', refreshUser)
   await loadReviews()
   if (window.location.hash === '#community-reviews') {
     await nextTick()
     document.getElementById('community-reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('auth-changed', refreshUser)
+  window.removeEventListener('storage', refreshUser)
 })
 watch(() => props.carparkId, loadReviews)
 </script>
@@ -183,7 +208,7 @@ watch(() => props.carparkId, loadReviews)
         <div class="overall-score"><strong>{{ summary.overallRating == null ? '—' : Number(summary.overallRating).toFixed(1) }}</strong><StarRating :model-value="summary.overallRating || 0" readonly /><span>Based on {{ summary.reviewCount || 0 }} review{{ summary.reviewCount === 1 ? '' : 's' }}</span></div>
         <div class="summary-details">
           <div v-if="difficultyConsensus" class="difficulty-consensus">
-            <span>Community parking difficulty <small>Based on {{ summary.parkingDifficultyReviewCount }} rating{{ summary.parkingDifficultyReviewCount === 1 ? '' : 's' }}</small></span>
+            <span>Community parking difficulty</span>
             <strong class="difficulty-badge" :class="`difficulty-${summary.parkingDifficulty}`" :title="difficultyConsensus.description">{{ difficultyConsensus.label }}</strong>
           </div>
           <dl class="breakdown"><div v-for="([label, value]) in breakdown" :key="label"><dt>{{ label }}</dt><dd>{{ value == null ? '—' : Number(value).toFixed(1) }}</dd></div></dl>
@@ -193,7 +218,7 @@ watch(() => props.carparkId, loadReviews)
       <div v-if="message" class="notice success" role="status">{{ message }}</div>
       <div v-if="error" class="notice error" role="alert">{{ error }}</div>
 
-      <form v-if="showForm" class="review-form" @submit.prevent="saveReview">
+      <form v-if="showForm" ref="formEl" class="review-form" @submit.prevent="saveReview">
         <div class="form-heading"><div><h3>{{ editingReviewId ? 'Edit your review' : 'Write a review' }}</h3><p>Your overall rating and parking difficulty are required. Category ratings help other drivers but are optional.</p></div><button type="button" class="text-button" @click="cancelReview">Cancel</button></div>
         <div class="rating-fields">
           <div class="required-rating">
@@ -216,7 +241,8 @@ watch(() => props.carparkId, loadReviews)
           </div>
         </fieldset>
         <label class="comment-field"><span>Review *</span><textarea v-model="form.comment" required maxlength="2000" rows="4" placeholder="Share useful details about navigation, lots, access or condition."></textarea><small>{{ form.comment.length }}/2000</small></label>
-        <button class="submit-button" type="submit" :disabled="saving || !form.overallRating || !form.parkingDifficulty || !form.comment.trim()">{{ saving ? 'Saving…' : editingReviewId ? 'Update review' : 'Submit review' }}</button>
+        <button class="submit-button" type="submit" :disabled="saving || missingFields.length > 0">{{ saving ? 'Saving…' : editingReviewId ? 'Update review' : 'Submit review' }}</button>
+        <p v-if="missingFields.length" class="missing-hint">Please add {{ missingFields.join(', ') }} to {{ editingReviewId ? 'update' : 'submit' }} your review.</p>
       </form>
 
       <div v-if="!reviews.length" class="review-state"><h3>No community reviews yet.</h3><p>Be the first to review this carpark.</p></div>
@@ -225,7 +251,7 @@ watch(() => props.carparkId, loadReviews)
           <header>
             <div>
               <div class="review-author-line">
-                <h3><RouterLink class="profile-link" :to="{ name: 'user-profile', params: { userId: review.user._id } }">{{ review.user.name }}</RouterLink></h3>
+                <h3><span v-if="isMine(review)" class="own-name">{{ review.user.name }} <small>(you)</small></span><RouterLink v-else class="profile-link" :to="{ name: 'user-profile', params: { userId: review.user._id } }">{{ review.user.name }}</RouterLink></h3>
                 <button
                   type="button"
                   class="contributor-badge"
@@ -244,7 +270,7 @@ watch(() => props.carparkId, loadReviews)
             </div>
           </header>
           <span v-if="parkingDifficultyDetails(review.parkingDifficulty)" class="difficulty-badge" :class="`difficulty-${review.parkingDifficulty}`" :title="parkingDifficultyDetails(review.parkingDifficulty).description">Parking: {{ parkingDifficultyDetails(review.parkingDifficulty).label }}</span>
-          <p class="review-comment">“{{ review.comment }}”</p>
+          <p class="review-comment">{{ review.comment }}</p>
           <dl class="review-ratings"><template v-for="([key, label]) in [['lotSpaciousness','Lot space'],['entranceExitAccessibility','Access'],['signage','Signage'],['pricing','Pricing']]" :key="key"><div v-if="review[key]"><dt>{{ label }}</dt><dd>{{ review[key] }}/5</dd></div></template></dl>
           <button class="helpful-button" :class="{ active: review.helpfulByCurrentUser }" type="button" :disabled="!user || isMine(review)" :title="isMine(review) ? 'You cannot vote for your own review' : !user ? 'Log in to mark this review as helpful' : ''" @click="markHelpful(review)">
             <span aria-hidden="true">👍</span> {{ review.helpfulByCurrentUser ? 'Helpful' : 'Mark helpful' }} <strong>{{ review.helpfulCount || 0 }}</strong>
@@ -256,7 +282,7 @@ watch(() => props.carparkId, loadReviews)
               <template v-if="editingReply?.replyId === reply._id"><textarea v-model="editReplyText" maxlength="1000" rows="2"></textarea><div class="reply-actions"><button @click="saveReplyEdit">Save</button><button @click="editingReply = null">Cancel</button></div></template>
               <template v-else>
                 <div>
-                  <strong><RouterLink class="profile-link" :to="{ name: 'user-profile', params: { userId: reply.user._id } }">{{ reply.user.name }}</RouterLink></strong>
+                  <strong><span v-if="isMine(reply)" class="own-name">{{ reply.user.name }} <small>(you)</small></span><RouterLink v-else class="profile-link" :to="{ name: 'user-profile', params: { userId: reply.user._id } }">{{ reply.user.name }}</RouterLink></strong>
                   <small>{{ formattedDate(reply.updatedAt) }}</small>
                 </div>
                 <p>{{ reply.comment }}</p>
@@ -284,7 +310,16 @@ watch(() => props.carparkId, loadReviews)
 .contributor-badge { cursor: pointer; }
 .contributor-badge:hover { box-shadow: 0 0 0 2px #087a5825; }
 .review-author-line { flex-wrap: wrap; }
-.review-side { display: flex; flex-direction: column; align-items: flex-end; gap: .25rem; flex-shrink: 0; text-align: right; }
+.review-form { scroll-margin-top: 6rem; }
+/* Keep the line breaks people type in reviews and replies. */
+.review-comment, .reply p { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* Your own name is plain text: your profile is already in the navbar. */
+.own-name { color: #173e30; }
+.own-name small { color: #6c7d76; font-weight: 500; }
+.missing-hint { margin: .5rem 0 0; color: #a02f2f; font-size: .85rem; }
+/* Date and Edit/Delete share one line, so your own reviews are no taller than others'. */
+.review-side { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .25rem .5rem; flex-shrink: 0; text-align: right; }
+.review-side .owner-actions { display: flex; align-items: center; }
 .review-time { color: #6c7d76; font-size: .8rem; white-space: nowrap; }
 .review-side .owner-actions button { padding: 0 0 0 .6rem; }
 .replies { margin-top: 1.25rem; padding: 1rem 0 0 1.25rem; border-left: 3px solid #d8eee5; }.replies h4 { font-size: .9rem; }.replies h4 span { color: #71817b; }.reply { position: relative; margin: .75rem 0; padding: .8rem; border-radius: .65rem; background: #f6faf8; }.reply > div:first-child { display: flex; justify-content: space-between; }.reply small { color: #71817b; }.reply p { margin: .4rem 0 0; }.reply-actions { display: flex; justify-content: end; gap: .5rem; }.reply-form { display: flex; gap: .5rem; margin-top: .75rem; }.reply-form button { padding: .5rem .9rem; border: 0; border-radius: .6rem; color: white; background: #087a58; font-weight: 700; }

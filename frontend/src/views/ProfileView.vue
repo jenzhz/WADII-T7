@@ -129,7 +129,7 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
   <section class="profile-page">
     <div class="profile-inner">
       <button v-if="!isOwnProfile" class="back-link" type="button" @click="goBack">&larr; Back</button>
-      <h1 class="mb-4">Driver profile</h1>
+      <h1 class="mb-4">{{ isOwnProfile ? 'My profile' : 'Community member' }}</h1>
 
       <div v-if="loading" class="state-panel" role="status">
         <LoadingSpinner />
