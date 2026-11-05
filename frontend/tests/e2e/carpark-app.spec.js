@@ -20,7 +20,9 @@ test('logs in, searches for a destination and opens the contributor levels', asy
   await expect(page.getByRole('heading', { name: 'Find parking near your destination' })).toBeVisible()
 
   await page.getByRole('textbox', { name: 'Destination' }).fill('Suntec')
-  await page.getByRole('button', { name: 'SUNTEC CITY', exact: true }).click()
+  // A recent-search button can have the same name; choose the OneMap suggestion.
+  await page.getByRole('list', { name: 'Destination suggestions' })
+    .getByRole('button', { name: 'SUNTEC CITY', exact: true }).click()
   await page.getByRole('button', { name: 'Search', exact: true }).click()
 
   await expect(page.getByRole('heading', { name: 'Nearby carparks', exact: true })).toBeVisible()

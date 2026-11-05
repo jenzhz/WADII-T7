@@ -10,6 +10,8 @@ The lecture examples use pnpm. This project uses npm workspaces, so the commands
 | Week 10b: Component testing | `frontend/src/components/__tests__/StarRating.spec.js` | Rating display, clicks, hover and read-only mode |
 | Week 10b: Integration testing | `frontend/src/components/__tests__/CommunityCarparkCard.integration.spec.js` | A real community card passes its rating to the real StarRating child |
 | Week 10c: E2E testing | `frontend/tests/e2e/carpark-app.spec.js` | Incorrect login, login/search/profile flow and registration validation |
+| Additional bug regressions | `frontend/src/views/__tests__/submission-regressions.spec.js` | Slow responses, search errors, saved filters/favourites, missing walking metrics and failed cost updates |
+| Additional backend regressions | `tests/backend/submission-regressions.test.mjs` | Input validation, routing failures, search timeouts and token renewal |
 
 ## 1. Run the Vitest tests
 
@@ -44,11 +46,7 @@ npm run dev
 
 The app should be on `http://localhost:5173`, with the backend on port 3000. E2E tests use the real backend, MongoDB, OneMap and LTA. The successful login test uses the existing demo account `aisha@test.com` with password `qwertyuiop`, defined in `backend/scripts/seedCommunity.js`. That account must already exist. If it is not in your database, replace those two demo values with a dedicated test account you created. Do not use a personal account password in committed test code.
 
-From `frontend`, install Chromium once if it has not been installed:
-
-```bash
-npm exec -- playwright install chromium
-```
+Install Google Chrome if it is not already installed. `frontend/playwright.config.js` uses `channel: 'chrome'`, so these tests run in an isolated Chrome profile and do not require Playwright's bundled Chromium.
 
 Then run:
 
@@ -62,7 +60,7 @@ Open the HTML test report, as taught in class:
 npm exec -- playwright show-report
 ```
 
-These tests do not create reviews, vote, change favourites or create an account. The successful login creates a normal login session. External API or database failures can cause E2E tests to fail even when the Vitest tests pass.
+These tests do not create reviews, vote, change favourites or create an account. The successful journey creates a normal login session and updates that demo account's recent searches. The destination button is selected within the suggestions list to distinguish it from recent-search buttons. External API or database failures can cause E2E tests to fail even when the Vitest tests pass.
 
 ## Understanding the code
 
@@ -79,4 +77,6 @@ These tests do not create reviews, vote, change favourites or create an account.
 - Playwright's `page.goto()`, `fill()` and `click()` perform browser actions.
 - `await expect(...).toBeVisible()` checks the result of a user action.
 
-The tests use automatic waiting rather than fixed delays. No API mocks, custom test fixtures or extra testing frameworks are used.
+The original class-example tests use automatic waiting rather than fixed delays. The additional regression files use mocked API responses and controlled promises to reproduce slow connections and failures without changing real accounts. They use the existing Vitest and Node test tools.
+
+Run all backend checks from the project root with `node --test tests/backend/*.test.mjs`. No servers or real API credentials are needed for those checks.

@@ -19,24 +19,17 @@ function numericQuery(value, name, minimum, maximum, fallback) {
  * Extracts a coordinate pair from request query parameters.
  */
 function extractCoordsFromQuery(query, combinedKey, latKeys, lngKeys) {
-  if (query[combinedKey]) {
-    const [lat, lng] = String(query[combinedKey])
-      .split(',')
-      .map((val) => Number(val.trim()))
-    if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      return { lat, lng }
-    }
+  if (query[combinedKey] !== undefined) {
+    const parts = typeof query[combinedKey] === 'string' ? query[combinedKey].split(',') : []
+    if (parts.length !== 2) throw Object.assign(new Error(`${combinedKey} must contain latitude,longitude.`), { status: 400 })
+    return { lat: numericQuery(parts[0], combinedKey, -90, 90), lng: numericQuery(parts[1], combinedKey, -180, 180) }
   }
 
   for (let i = 0; i < latKeys.length; i += 1) {
     const rawLat = query[latKeys[i]]
     const rawLng = query[lngKeys[i]]
-    if (rawLat !== undefined && rawLng !== undefined && rawLat !== '' && rawLng !== '') {
-      const lat = Number(rawLat)
-      const lng = Number(rawLng)
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        return { lat, lng }
-      }
+    if (rawLat !== undefined || rawLng !== undefined) {
+      return { lat: numericQuery(rawLat, latKeys[i], -90, 90), lng: numericQuery(rawLng, lngKeys[i], -180, 180) }
     }
   }
 
@@ -74,6 +67,9 @@ export async function getCarparkDetails(request, response, next) {
   try {
     const carparkId = request.params.id || request.query.carparkId || request.query.id
     const lotType = request.query.lotType || request.query.vehicleType || 'C'
+    if (!['C', 'Y', 'H'].includes(lotType)) {
+      throw Object.assign(new Error('lotType must be C, Y or H.'), { status: 400 })
+    }
 
     if (!carparkId) {
       return response.status(400).json({
@@ -96,31 +92,22 @@ export async function getCarparkDetails(request, response, next) {
       ['destLng', 'endLng', 'destinationLng', 'longitude']
     )
 
-    let carpark
+    const carpark = await getCarparkAvailabilityById(carparkId, lotType)
     let routeMetrics = null
+    let routeError = null
 
-    if (queryDestination && queryOrigin) {
-      ;[carpark, routeMetrics] = await Promise.all([
-        getCarparkAvailabilityById(carparkId, lotType),
-        getWalkingRoute(queryOrigin, queryDestination),
-      ])
-    } else if (queryDestination) {
-      carpark = await getCarparkAvailabilityById(carparkId, lotType)
-
-      if (!Number.isFinite(carpark.latitude) || !Number.isFinite(carpark.longitude)) {
-        return response.status(400).json({
-          success: false,
-          message:
-            'Origin coordinates were not provided and could not be determined from the carpark location.',
-        })
+    if (queryDestination) {
+      const origin = queryOrigin || { lat: carpark.latitude, lng: carpark.longitude }
+      if (Number.isFinite(origin.lat) && Number.isFinite(origin.lng)) {
+        try {
+          routeMetrics = await getWalkingRoute(origin, queryDestination)
+        } catch {
+          // A routing outage must not hide valid availability and parking rates.
+          routeError = 'Walking route is currently unavailable. Refresh live data to try again.'
+        }
+      } else {
+        routeError = 'Walking route is unavailable because this carpark has no location coordinates.'
       }
-
-      routeMetrics = await getWalkingRoute(
-        { lat: carpark.latitude, lng: carpark.longitude },
-        queryDestination
-      )
-    } else {
-      carpark = await getCarparkAvailabilityById(carparkId, lotType)
     }
 
     const resolvedOriginLat = carpark.latitude ?? queryOrigin?.lat ?? null
@@ -164,6 +151,7 @@ export async function getCarparkDetails(request, response, next) {
           longitude: queryDestination.lng,
         } : null,
         straightLineDistance,
+        routeError,
         walkingDistance: routeMetrics?.walkingDistance ?? null,
         walkingDistanceKm: routeMetrics?.walkingDistanceKm ?? null,
         walkingTime: routeMetrics?.walkingTime ?? null,

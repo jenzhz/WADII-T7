@@ -25,12 +25,20 @@ test('distance is metres and is zero for identical coordinates', () => {
 })
 
 test('pagination, cache, radius and vehicle filtering', async () => {
+  const originalKey = process.env.LTA_API_KEY
   process.env.LTA_API_KEY = 'test-only'
   const originalFetch = globalThis.fetch
   const urls = []
+  let evRequests = 0
   globalThis.fetch = async (url, options) => {
-    urls.push(url)
     assert.equal(options.headers.AccountKey, 'test-only')
+    // EV discovery is a separate request, not an availability page.
+    if (new URL(url).pathname.endsWith('/EVCBatch')) {
+      evRequests += 1
+      return { ok: true, json: async () => ({ value: [] }) }
+    }
+    assert.ok(new URL(url).pathname.endsWith('/CarParkAvailabilityv2'))
+    urls.push(url)
     const rows = url.endsWith('=0')
       ? Array.from({ length: 500 }, (_, i) => ({ ...fixture, CarParkID: String(i) }))
       : [{ ...fixture, CarParkID: 'far', Location: '1.4 103.9' }, { ...fixture, LotType: 'Y' }, { ...fixture, CarParkID: 'missing', Location: '' }]
@@ -40,12 +48,19 @@ test('pagination, cache, radius and vehicle filtering', async () => {
     const all = await getCarparkAvailability()
     assert.equal(all.carparks.length, 503)
     assert.deepEqual(urls.map(x => x.split('=')[1]), ['0', '500'])
+    assert.equal(evRequests, 1)
     const near = await getNearbyCarparks({ latitude: 1.293, longitude: 103.857, radius: 1000, vehicleType: 'C' })
     assert.equal(near.carparks.length, 500)
     assert.equal(urls.length, 2)
     assert.ok(near.carparks.every(row => row.distance === 0))
     assert.equal((await getNearbyCarparks({ latitude: 1.293, longitude: 103.857, radius: 1000, vehicleType: 'Y' })).carparks.length, 1)
-  } finally { globalThis.fetch = originalFetch; delete process.env.LTA_API_KEY }
+    assert.equal(urls.length, 2)
+    assert.equal(evRequests, 1)
+  } finally {
+    globalThis.fetch = originalFetch
+    if (originalKey === undefined) delete process.env.LTA_API_KEY
+    else process.env.LTA_API_KEY = originalKey
+  }
 })
 
 test('missing key gives actionable error', async () => {

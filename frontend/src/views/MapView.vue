@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import CarparkMap from '@/components/CarparkMap.vue'
@@ -43,6 +43,9 @@ const carparks = ref([])
 const routeGeometry = ref(null)
 const loading = ref(false)
 const error = ref('')
+let nearbyRequest = 0
+let walkingRequest = 0
+onBeforeUnmount(() => { nearbyRequest += 1; walkingRequest += 1 })
 const radiusOptions = [
   { value: '250', label: 'Within 250 m' },
   { value: '500', label: 'Within 500 m' },
@@ -65,6 +68,8 @@ const destination = ref({
 })
 
 async function loadCarparks() {
+  const requestId = ++nearbyRequest
+  walkingRequest += 1
   if (!Number.isFinite(destination.value.latitude) || !Number.isFinite(destination.value.longitude)) {
     error.value = 'Open the map from a destination search to show nearby carparks.'
     return
@@ -83,6 +88,7 @@ async function loadCarparks() {
       },
     })
     const list = data.carparks || []
+    if (requestId !== nearbyRequest) return
     if (isCompareMode) {
       const byId = new Map(list.map(carpark => [String(carpark.id), carpark]))
       carparks.value = compareIds
@@ -92,13 +98,15 @@ async function loadCarparks() {
       carparks.value = evOnly ? list.filter(carpark => carpark.hasEvCharger === true) : list
     }
   } catch (requestError) {
+    if (requestId !== nearbyRequest) return
     error.value = requestError.response?.data?.message || 'Unable to load carparks.'
   } finally {
-    loading.value = false
+    if (requestId === nearbyRequest) loading.value = false
   }
 }
 
 async function showWalkingRoute(carpark) {
+  const requestId = ++walkingRequest
   routeGeometry.value = null
   error.value = ''
 
@@ -114,8 +122,11 @@ async function showWalkingRoute(carpark) {
         destinationName: destination.value.label,
       },
     })
+    if (requestId !== walkingRequest) return
     routeGeometry.value = data.data?.routeGeometry || null
+    if (!routeGeometry.value) error.value = data.data?.routeError || 'No walking route is available for this carpark.'
   } catch (requestError) {
+    if (requestId !== walkingRequest) return
     error.value = requestError.response?.data?.message || 'Unable to load walking route.'
   }
 }

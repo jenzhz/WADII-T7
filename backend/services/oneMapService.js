@@ -19,6 +19,7 @@ function serviceError(message, status = 502) {
 // expires. Otherwise it falls back to the fixed ONEMAP_TOKEN.
 // ---------------------------------------------------------------------------
 let cachedToken = null // { value, expiresAt }
+let tokenRequest = null
 
 function tokenExpiry(token) {
   try {
@@ -61,7 +62,9 @@ async function getOneMapToken({ forceRefresh = false } = {}) {
     if (!forceRefresh && cachedToken && cachedToken.expiresAt - Date.now() > 10 * 60_000) {
       return cachedToken.value
     }
-    return requestNewToken()
+    // Search and walking requests can arrive together. Share one renewal.
+    if (!tokenRequest) tokenRequest = requestNewToken().finally(() => { tokenRequest = null })
+    return tokenRequest
   }
 
   const token = process.env.ONEMAP_TOKEN?.trim()
@@ -87,12 +90,15 @@ function parseCoordinates(coord, label) {
   let lat
   let lng
 
+  const numberOrNaN = value =>
+    (typeof value === 'number' || (typeof value === 'string' && value.trim())) ? Number(value) : NaN
   if (typeof coord === 'string') {
-    const parts = coord.split(',').map((part) => Number(part.trim()))
+    const parts = coord.split(',').map((part) => numberOrNaN(part))
+    if (parts.length !== 2) throw serviceError(`Invalid ${label} coordinates.`, 400)
     ;[lat, lng] = parts
   } else if (typeof coord === 'object') {
-    lat = Number(coord.lat ?? coord.latitude)
-    lng = Number(coord.lng ?? coord.longitude)
+    lat = numberOrNaN(coord.lat ?? coord.latitude)
+    lng = numberOrNaN(coord.lng ?? coord.longitude)
   }
 
   if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
@@ -103,8 +109,8 @@ function parseCoordinates(coord, label) {
 }
 
 export async function searchLocation(destination) {
-  const token = await getOneMapToken()
-  const response = await axios.get(ONEMAP_SEARCH_URL, {
+  const callSearch = token => axios.get(ONEMAP_SEARCH_URL, {
+    timeout: 15_000,
     params: {
       searchVal: destination,
       returnGeom: 'Y',
@@ -115,7 +121,21 @@ export async function searchLocation(destination) {
       Authorization: token,
     },
   })
-  return response.data
+  let token = await getOneMapToken()
+  try {
+    let response
+    try {
+      response = await callSearch(token)
+    } catch (error) {
+      if (![401, 403].includes(error.response?.status) || !process.env.ONEMAP_EMAIL?.trim() || !process.env.ONEMAP_PASSWORD) throw error
+      token = await getOneMapToken({ forceRefresh: true })
+      response = await callSearch(token)
+    }
+    return response.data
+  } catch {
+    // Return a safe message instead of logging Axios headers containing the token.
+    throw serviceError('OneMap destination search is unavailable. Please try again shortly.', 502)
+  }
 }
 
 /**
@@ -183,8 +203,14 @@ export async function getWalkingRoute(origin, destination) {
     )
   }
 
-  const totalDistanceMeters = Number(data.route_summary.total_distance) || 0
-  const totalTimeSeconds = Number(data.route_summary.total_time) || 0
+  const { total_distance, total_time } = data.route_summary
+  const totalDistanceMeters = Number(total_distance)
+  const totalTimeSeconds = Number(total_time)
+  if (total_distance == null || total_time == null || total_distance === '' || total_time === '' ||
+      !Number.isFinite(totalDistanceMeters) || totalDistanceMeters < 0 ||
+      !Number.isFinite(totalTimeSeconds) || totalTimeSeconds < 0) {
+    throw serviceError('OneMap returned incomplete walking distance or time.', 502)
+  }
   const walkingTimeMinutes = totalTimeSeconds > 0 ? Math.ceil(totalTimeSeconds / 60) : 0
 
   return {

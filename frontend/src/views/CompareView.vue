@@ -136,8 +136,11 @@ async function showRoute(carpark) {
         destinationName: mapDestination.value.label,
       },
     })
-    if (routeCarparkId.value === carpark.id) routeGeometry.value = data.data?.routeGeometry || null
+    if (routeCarparkId.value !== carpark.id) return
+    routeGeometry.value = data.data?.routeGeometry || null
+    if (!routeGeometry.value) routeError.value = data.data?.routeError || 'No walking route is available for this carpark.'
   } catch (error) {
+    if (routeCarparkId.value !== carpark.id) return
     routeError.value = error.response?.data?.message || 'Unable to load the walking route.'
   }
 }
@@ -155,12 +158,14 @@ function lotsClass(carpark) {
 // When the duration changes, only update the estimated costs.
 // The cards stay on screen (no "Loading carparks…"); only the cost line shows "Updating…".
 const updatingCost = ref(false)
+const costError = ref('')
 let costRequestId = 0
 
 async function refreshCosts() {
   if (selectedIds.value.length === 0) return
   const requestId = ++costRequestId
   updatingCost.value = true
+  costError.value = ''
   try {
     const response = await api.get('/carparks/nearby', {
       params: {
@@ -177,7 +182,9 @@ async function refreshCosts() {
       costs.has(carpark.id) ? { ...carpark, estimatedCost: costs.get(carpark.id) } : carpark
     )
   } catch {
-    // Keep the old costs on screen if the update fails
+    if (requestId !== costRequestId) return
+    selectedCarparks.value = selectedCarparks.value.map(carpark => ({ ...carpark, estimatedCost: null }))
+    costError.value = 'Could not update parking costs for this duration. Choose a duration again to retry.'
   } finally {
     if (requestId === costRequestId) updatingCost.value = false
   }
@@ -223,6 +230,7 @@ const bestCost = computed(() => {
 
 // HDB: calculated cost. LTA: "Varies". URA: dash.
 function formatCost(carpark) {
+  if (costError.value) return 'Unavailable'
   if (carpark.estimatedCost != null) return `$${carpark.estimatedCost.toFixed(2)}`
   return carpark.rate?.costLabel ?? '—'
 }
@@ -260,6 +268,7 @@ function formatCost(carpark) {
       </div>
 
       <!-- 2 cards: 6/12 each, 3 cards: 4/12 each; stacked on phones -->
+      <p v-if="costError" class="alert alert-warning" role="alert">{{ costError }}</p>
       <TransitionGroup name="card-list" tag="div" class="row g-3">
         <div v-for="carpark in ranked" :key="carpark.id" class="col-12" :class="columnClass">
           <div class="card h-100 compare-card" :class="{ recommended: carpark.rank === 1 }">

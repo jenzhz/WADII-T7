@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router' 
 import api from '@/services/api'
 import FilterDropdown from '@/components/FilterDropdown.vue'
@@ -15,6 +15,9 @@ const SEARCH_KEY = 'carparkcompare.search'
 
 const destination = ref("")
 const results = ref([])
+const searchError = ref('')
+let searchRequest = 0
+onBeforeUnmount(() => { searchRequest += 1 })
 
 const selectedDestination = ref(null)
 
@@ -90,6 +93,8 @@ function saveSearch() {
 }
 
 function clearSearch() {
+  searchRequest += 1
+  searchError.value = ''
   destination.value = ''
   results.value = []
   selectedDestination.value = null
@@ -105,23 +110,34 @@ watch(vehicleType, () => {
 
 
 async function searchDestination() {
+  // Only the latest request may update the suggestions, even on a slow connection.
+  const requestId = ++searchRequest
   selectedDestination.value = null
+  searchError.value = ''
+  results.value = []
 
   if (destination.value.trim() === '') {
     results.value = []
     return
   }
   
-  const response = await api.get('/locations/search', {
-    params : {
-      q : destination.value
-    }
-  })
-  results.value = response.data.results
+  try {
+    const response = await api.get('/locations/search', {
+      params: { q: destination.value.trim() },
+    })
+    if (requestId !== searchRequest) return
+    results.value = Array.isArray(response.data.results) ? response.data.results : []
+    if (!results.value.length) searchError.value = 'No matching destinations. Try another name or postal code.'
+  } catch (error) {
+    if (requestId !== searchRequest) return
+    searchError.value = error.response?.data?.message || 'Unable to search destinations. Please try again.'
+  }
 }
 
 
 function selectDestination(item) {
+  searchRequest += 1
+  searchError.value = ''
   selectedDestination.value = item
   destination.value = item.SEARCHVAL
   results.value = []
@@ -151,6 +167,8 @@ function useCurrentLocation() {
         return
       }
       results.value = []
+      searchRequest += 1
+      searchError.value = ''
       destination.value = 'Current location'
       selectedDestination.value = {
         SEARCHVAL: 'Current location',
@@ -223,6 +241,7 @@ function goToResults() {
               </li>
             </ul>
           </div>
+          <small v-if="searchError" class="location-error" role="alert">{{ searchError }}</small>
           <button class="location-button" type="button" :disabled="locating" @click="useCurrentLocation">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M12 5.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13Z" /></svg>
             {{ locating ? 'Finding your location…' : 'Use my current location' }}

@@ -49,12 +49,15 @@ const favouriteMessage = ref('')
 const favouriteMessageIsError = ref(false)
 let latestRequest = 0
 
-const contextQuery = computed(() => ({ ...route.query, destination: destination.value, vehicleType: vehicleType.value }))
+const contextQuery = computed(() => ({
+  ...route.query, destination: destination.value, vehicleType: vehicleType.value,
+  radius: maxDistance.value, ev: evOnly.value ? '1' : undefined, sort: sortBy.value,
+}))
 // The map shows the same carparks as this page: same distance and EV filter
 const mapQuery = computed(() => ({
   ...contextQuery.value,
-  radius: maxDistance.value,
-  ...(evOnly.value ? { ev: '1' } : {}),
+  radius: sortBy.value === 'lots' ? String(Math.min(Number(maxDistance.value), 1000)) : maxDistance.value,
+  ev: evOnly.value ? '1' : undefined,
   from: 'results',
 }))
 const results = computed(() => filterAndSortCarparks(carparks.value, {
@@ -154,7 +157,11 @@ onMounted(() => {
   }, { rootMargin: '200px 0px' }) // start a little before the card appears
   for (const element of observedCards.keys()) cardObserver.observe(element)
 })
-onBeforeUnmount(() => cardObserver?.disconnect())
+onBeforeUnmount(() => {
+  cardObserver?.disconnect()
+  resetWalking()
+  latestRequest += 1
+})
 
 // Template ref for each card wrapper
 function trackCard(element, id) {
@@ -231,21 +238,19 @@ async function toggleCarparkFavourite(carpark) {
   favouriteMessage.value = ''
   try {
     const existing = carparkFavourites.value.get(carpark.id)
-    const next = new Map(carparkFavourites.value)
     if (existing) {
       await api.delete(`/favourites/${existing.id}`)
-      next.delete(carpark.id)
+      carparkFavourites.value.delete(carpark.id)
       favouriteMessage.value = `${carpark.name} removed from favourites.`
     } else {
       const { data } = await api.post('/favourites', {
         type: 'carpark', label: carpark.name, carparkId: carpark.id,
         latitude: carpark.latitude, longitude: carpark.longitude,
       })
-      next.set(carpark.id, data.favourite)
+      carparkFavourites.value.set(carpark.id, data.favourite)
       favouriteMessage.value = `${carpark.name} added to favourites.`
     }
     favouriteMessageIsError.value = false
-    carparkFavourites.value = next
   } catch (err) {
     favouriteMessage.value = err.response?.data?.message || 'Unable to update this favourite.'
     favouriteMessageIsError.value = true
@@ -309,7 +314,9 @@ watch(() => [route.query.destination, route.query.latitude, route.query.longitud
   vehicleType.value = ['C', 'Y', 'H'].includes(route.query.vehicleType) ? route.query.vehicleType : 'C'
   favouriteSaved.value = false
   favouriteMessage.value = ''
-  resetFilters()
+  maxDistance.value = distanceOptions.some(option => option.value === String(route.query.radius)) ? String(route.query.radius) : '1000'
+  evOnly.value = route.query.ev === '1'
+  sortBy.value = route.query.sort === 'lots' ? 'lots' : 'walk'
   loadCarparks()
   loadCarparkFavourites()
 }, { immediate: true })

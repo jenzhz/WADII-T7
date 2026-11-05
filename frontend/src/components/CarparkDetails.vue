@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
 import { getCurrentUser } from '@/services/auth'
 import RateSchedule from '@/components/RateSchedule.vue'
@@ -54,6 +54,9 @@ const carparkFavourite = ref(null)
 const favouriteSaving = ref(false)
 const favouriteStatus = ref('')
 const favouriteError = ref(false)
+let detailsRequest = 0
+let favouriteRequest = 0
+onBeforeUnmount(() => { detailsRequest += 1; favouriteRequest += 1 })
 
 const showEvLeaf = computed(() =>
   Boolean(carparkDetails.value?.hasEvCharger ?? props.hasEvCharger)
@@ -84,6 +87,7 @@ const availabilityBadge = computed(() => {
 })
 
 const formattedDistance = computed(() => {
+  if (carparkDetails.value?.walkingDistance == null) return '—'
   const meters = Number(carparkDetails.value?.walkingDistance)
   if (!Number.isFinite(meters)) return '—'
   if (meters >= 1000) {
@@ -93,9 +97,13 @@ const formattedDistance = computed(() => {
 })
 
 const routeGeometry = computed(() => carparkDetails.value?.routeGeometry || null)
+const walkingStatus = computed(() => carparkDetails.value?.destination
+  ? 'Walking route unavailable. Try refreshing live data.'
+  : 'Choose a destination to calculate a walking route.')
 
 const selectedCarpark = computed(() => {
   const details = carparkDetails.value
+  if (details?.coordinates?.latitude == null || details?.coordinates?.longitude == null) return []
   const latitude = Number(details?.coordinates?.latitude)
   const longitude = Number(details?.coordinates?.longitude)
 
@@ -111,6 +119,7 @@ const selectedCarpark = computed(() => {
 })
 
 async function fetchCarparkDetails() {
+  const requestId = ++detailsRequest
   isLoading.value = true
   errorMessage.value = ''
 
@@ -132,28 +141,33 @@ async function fetchCarparkDetails() {
     }
 
     const { data: responsePayload } = await api.get('/carpark-details', { params })
+    if (requestId !== detailsRequest) return
 
     carparkDetails.value = responsePayload?.data || responsePayload
     lastUpdated.value = new Date().toLocaleTimeString('en-SG')
   } catch (error) {
+    if (requestId !== detailsRequest) return
     errorMessage.value =
       error.response?.data?.message ||
       error.message ||
       'Unable to fetch carpark details and walking route.'
   } finally {
-    isLoading.value = false
+    if (requestId === detailsRequest) isLoading.value = false
   }
 }
 
 async function loadCarparkFavourite() {
+  const requestId = ++favouriteRequest
+  carparkFavourite.value = null
   if (!signedIn) return
   try {
     const { data } = await api.get('/favourites')
+    if (requestId !== favouriteRequest) return
     carparkFavourite.value = data.favourites.find(
       item => item.type === 'carpark' && item.carparkId === props.carparkId,
     ) || null
   } catch {
-    carparkFavourite.value = null
+    if (requestId === favouriteRequest) carparkFavourite.value = null
   }
 }
 
@@ -170,7 +184,8 @@ async function toggleCarparkFavourite() {
     } else {
       const latitude = Number(carparkDetails.value.coordinates?.latitude)
       const longitude = Number(carparkDetails.value.coordinates?.longitude)
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      if (carparkDetails.value.coordinates?.latitude == null || carparkDetails.value.coordinates?.longitude == null ||
+          !Number.isFinite(latitude) || !Number.isFinite(longitude)) {
         throw new Error('This carpark does not have valid coordinates.')
       }
       const { data } = await api.post('/favourites', {
@@ -206,6 +221,8 @@ watch(
     props.lotType,
   ],
   () => {
+    carparkDetails.value = null
+    lastUpdated.value = ''
     fetchCarparkDetails()
     favouriteStatus.value = ''
     loadCarparkFavourite()
@@ -343,7 +360,7 @@ watch(
                 {{ formattedDistance }}
               </div>
             </div>
-            <p class="text-muted small mb-0 mt-2">Calculated via OneMap Routing API</p>
+            <p class="text-muted small mb-0 mt-2">{{ carparkDetails.walkingDistance == null ? walkingStatus : 'Calculated via OneMap Routing API' }}</p>
           </div>
         </div>
       </div>
@@ -358,9 +375,10 @@ watch(
                 {{ carparkDetails.walkingTime ?? '—' }} mins
               </div>
             </div>
-            <p class="text-muted small mb-0 mt-2">
-              Approx. {{ carparkDetails.totalTimeSeconds || (carparkDetails.walkingTime || 0) * 60 }}s pedestrian walk
+            <p v-if="carparkDetails.walkingTime != null" class="text-muted small mb-0 mt-2">
+              Approx. {{ carparkDetails.totalTimeSeconds ?? carparkDetails.walkingTime * 60 }}s pedestrian walk
             </p>
+            <p v-else class="text-muted small mb-0 mt-2">{{ walkingStatus }}</p>
           </div>
         </div>
       </div>
@@ -382,6 +400,7 @@ watch(
         <h2 class="h5 mb-0 fw-semibold">Walking Route Summary</h2>
       </div>
       <div class="card-body p-4">
+        <p v-if="carparkDetails.routeError" class="alert alert-warning" role="status">{{ carparkDetails.routeError }}</p>
         <div class="row g-3 mb-3">
           <div class="col-sm-6">
             <div class="route-endpoint p-3 rounded">

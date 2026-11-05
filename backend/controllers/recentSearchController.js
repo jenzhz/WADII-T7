@@ -37,6 +37,8 @@ export async function addRecentSearch(request, response, next) {
     const longitude = Number(request.body.longitude)
 
     if (!label || label.length > 200 ||
+        request.body.latitude == null || String(request.body.latitude).trim() === '' ||
+        request.body.longitude == null || String(request.body.longitude).trim() === '' ||
         !Number.isFinite(latitude) || Math.abs(latitude) > 90 ||
         !Number.isFinite(longitude) || Math.abs(longitude) > 180) {
       return response.status(400).json({ success: false, message: 'A valid label, latitude, and longitude are required.' })

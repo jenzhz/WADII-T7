@@ -5,7 +5,10 @@ import { getWalkingRoute as fetchWalkingRoute, searchLocation } from '../service
 
 
 export async function searchLocations(request, response) {
-  const data = await searchLocation(request.query.q)
+  if (typeof request.query.q !== 'string' || !request.query.q.trim()) {
+    return response.status(400).json({ success: false, message: 'Enter a destination name or postal code.' })
+  }
+  const data = await searchLocation(request.query.q.trim())
   response.json(data)
 }
 
@@ -16,6 +19,7 @@ const WALKING_CACHE_MS = 24 * 60 * 60 * 1000
 const WALKING_CACHE_MAX = 2000
 
 function coordinate(value, max) {
+  if (typeof value !== 'string' || !value.trim()) return null
   const number = Number(value)
   return Number.isFinite(number) && Math.abs(number) <= max ? number : null
 }

@@ -31,6 +31,9 @@ export async function createFavourite(request, response, next) {
     const carparkId = request.body.carparkId ? String(request.body.carparkId).trim() : undefined
 
     if (!['destination', 'carpark'].includes(type) || !label ||
+        request.body.latitude == null || String(request.body.latitude).trim() === '' ||
+        request.body.longitude == null || String(request.body.longitude).trim() === '' ||
+        (type === 'carpark' && !carparkId) ||
         !Number.isFinite(latitude) || Math.abs(latitude) > 90 ||
         !Number.isFinite(longitude) || Math.abs(longitude) > 180) {
       return response.status(400).json({

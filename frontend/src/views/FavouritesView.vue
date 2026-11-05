@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import api from '@/services/api'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import FilterDropdown from '@/components/FilterDropdown.vue'
@@ -28,6 +28,8 @@ const loadingFavourites = ref(true)
 const loadingCarparks = ref(false)
 const favouritesError = ref('')
 const carparksError = ref('')
+let nearbyRequest = 0
+onBeforeUnmount(() => { nearbyRequest += 1 })
 
 const rankedCarparks = computed(() =>
   rankCarparks(carparks.value, weightOptions[preference.value]).slice(0, 3),
@@ -65,6 +67,7 @@ async function loadFavourites() {
 }
 
 async function loadCarparks() {
+  const requestId = ++nearbyRequest
   if (!activeFavourite.value) return
   loadingCarparks.value = true
   carparksError.value = ''
@@ -78,11 +81,11 @@ async function loadCarparks() {
         radius: 1000,
       },
     })
-    carparks.value = normaliseCarparks(data.carparks)
+    if (requestId === nearbyRequest) carparks.value = normaliseCarparks(data.carparks)
   } catch (error) {
-    carparksError.value = error.response?.data?.message || 'Unable to load nearby carparks.'
+    if (requestId === nearbyRequest) carparksError.value = error.response?.data?.message || 'Unable to load nearby carparks.'
   } finally {
-    loadingCarparks.value = false
+    if (requestId === nearbyRequest) loadingCarparks.value = false
   }
 }
 
@@ -98,6 +101,8 @@ async function removeFavourite(favourite) {
     await api.delete(`/favourites/${favourite.id}`)
     favourites.value = favourites.value.filter(item => item.id !== favourite.id)
     if (activeFavourite.value?.id === favourite.id) {
+      nearbyRequest += 1
+      loadingCarparks.value = false
       activeFavourite.value = null
       carparks.value = []
       carparksError.value = ''

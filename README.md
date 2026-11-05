@@ -254,13 +254,7 @@ Run commands from the repository root unless otherwise stated.
 npm test --workspace frontend
 ```
 
-**E2E:** install Playwright's browser once:
-
-```bash
-cd frontend
-npm exec -- playwright install chromium
-cd ..
-```
+**E2E:** install Google Chrome if it is not already installed. The current Playwright configuration uses `channel: 'chrome'`, so installing Playwright's bundled Chromium is not required.
 
 Start `npm run dev` in one terminal, then in another:
 
@@ -268,7 +262,7 @@ Start `npm run dev` in one terminal, then in another:
 npm run test:e2e --workspace frontend
 ```
 
-E2E hardcodes `http://localhost:5173`; it does **not** automatically test the deployed URL. It needs the real backend/database/APIs and the seeded Aisha account. It uses roles/labels where available and automatic waiting. It creates a login session but does not create accounts/reviews/favourites or change helpful votes.
+E2E hardcodes `http://localhost:5173`; it does **not** automatically test the deployed URL. It needs the real backend/database/APIs and the seeded Aisha account. It uses roles/labels where available and automatic waiting. The successful journey creates a login session and updates the account's recent searches. It does not create accounts/reviews/favourites or change helpful votes.
 
 Open the HTML report:
 
@@ -282,21 +276,25 @@ Generated reports are in `frontend/playwright-report`, failure artifacts in `fro
 **Backend tests** mock HTTP calls and need no live API key:
 
 ```bash
-node --test tests/backend/lta.test.mjs
+node --test tests/backend/*.test.mjs
 ```
 
-### Verified status and outstanding test maintenance
+### Verified automated test results
 
-Checks run on **5 November 2026** during this README update:
+All three automated suites were rerun on **5 November 2026** during the submission bug-fix review:
 
 | Check | Observed result |
 | --- | --- |
-| Vitest | **17 passed** across three test files |
-| Playwright with existing local servers | **2 passed, 1 failed** |
-| Node backend tests | **4 passed, 1 failed** |
-| Published website `/api/health` | HTTP 200, `success: true` |
+| Vitest | **26 passed** across four test files |
+| Playwright with local servers and Google Chrome | **3 passed** |
+| Node backend tests | **13 passed** across two test files |
+| **Total** | **42 passed, 0 failed** |
 
-The recorded E2E run stopped at Results because it expected the old **“Retrieved”** text instead of **“Updated”**, before reaching the profile/levels assertions. Commit `a45ac3d`, subsequently pulled from `dev`, fixes that assertion and configures Playwright to use Chrome; the suite has not been rerun since that change. The backend pagination test counts the newer `EVCBatch` request as an availability-page request, making its expected URL list outdated. Fix the backend expectation and rerun both suites before claiming an all-passing suite.
+The E2E search selects “SUNTEC CITY” specifically within the destination suggestions list, so an identically named recent search does not make the selector ambiguous. The full journey reaches Results, opens the profile and contributor levels, and closes the dialog. The backend mock handles EV discovery separately while retaining checks for both availability pages, cached requests, radius and vehicle filtering.
+
+Additional regression tests use fake responses to check slow/out-of-order searches, clearing suggestions, search failures and recovery, retained results filters, concurrent favourite saves, switching favourite destinations, missing versus genuine zero walking distances, and failed parking-cost refreshes. Backend checks cover invalid input, incomplete walking summaries, keeping carpark details available during routing failures, search timeouts, shared token renewal and retrying a rejected token. These run offline and do not change database records.
+
+A separate Chrome layout smoke check inspected Home, Results, Map, Compare, Favourites, Community, Profile and Details at 375, 820, 986, 1200 and 1440 px widths with fixture API data: no horizontal page overflow or uncaught JavaScript errors were observed in those 40 combinations. This is a layout check, not a claim that all live-data interactions or device orientations have been tested.
 
 Automated coverage is selective, not exhaustive. Live API/database problems can also affect E2E independently of unit/component tests.
 
@@ -440,9 +438,9 @@ WADII-T7/
 
 - Initial structure
 - Explanations of Vue/JavaScript/API/Git concepts
-- Debugging guidance
+- Debugging guidance and implemented bug fixes (search response timing/error handling, filters, favourites, missing walking data, routing failures, map resizing, cost refreshes and API validation/token renewal)
 - Help with styling, responsive styling, animations
-- Test inputs and sample/mock-data assistance.
+- Test implementation, regression cases, test inputs and sample/mock-data assistance
 - Deployment configuration
 - README/documentation
 

@@ -24,6 +24,7 @@ const mapElement = ref(null);
 let map;
 let markerLayer;
 let routeLayer;
+let resizeObserver;
 const destinationIcon = L.icon({
   iconUrl: destinationIconUrl,
   iconSize: [32, 40],
@@ -122,13 +123,13 @@ function renderMarkers() {
   if (props.destination && Number.isFinite(props.destination.latitude) && Number.isFinite(props.destination.longitude)) {
     L.marker([props.destination.latitude, props.destination.longitude], {
       icon: destinationIcon,
-      title: props.destination.label || 'Selected destination',
+      title: props.destination.label || props.destination.name || 'Selected destination',
       alt: 'Destination',
       zIndexOffset: 1000,
     }).bindPopup(
       `<div class="cc-popup-body">
         <span class="cc-popup-tag cc-popup-tag--destination">Destination</span>
-        <strong class="cc-popup-title">${escapeHtml(props.destination.label || 'Selected destination')}</strong>
+        <strong class="cc-popup-title">${escapeHtml(props.destination.label || props.destination.name || 'Selected destination')}</strong>
         <span class="cc-popup-note">Carparks are shown around this point</span>
       </div>`,
       POPUP_OPTIONS,
@@ -200,11 +201,16 @@ onMounted(() => {
   }).addTo(map);
 
   renderMarkers();
+  if (typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => map?.invalidateSize({ pan: false }))
+    resizeObserver.observe(mapElement.value)
+  }
 })
 
-watch(() => [props.carparks, props.routeGeometry, props.activeCarparkId], renderMarkers, { deep: true });
+watch(() => [props.carparks, props.destination, props.routeGeometry, props.activeCarparkId], renderMarkers, { deep: true });
 
 onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
   markerLayer?.clearLayers()
   routeLayer?.remove()
   map?.remove()
