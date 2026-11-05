@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '@/services/api'
 import { getMyReviews, getUserReviews } from '@/services/reviews'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
@@ -9,6 +9,7 @@ import ProfileReviewMap from '@/components/ProfileReviewMap.vue'
 import ContributorLevelsDialog from '@/components/ContributorLevelsDialog.vue'
 
 const route = useRoute()
+const router = useRouter()
 const isOwnProfile = computed(() => !route.params.userId)
 const user = ref(null)
 const reviews = ref([])
@@ -114,13 +115,21 @@ function formattedDate(value) {
   return new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+// Go back to wherever the user came from (carpark details, Community…).
+// If the page was opened directly (no history), fall back to Community.
+function goBack() {
+  if (window.history.state?.back) router.back()
+  else router.push({ name: 'community' })
+}
+
 watch(() => route.params.userId, loadProfile, { immediate: true })
 </script>
 
 <template>
   <section class="profile-page">
     <div class="profile-inner">
-      <h1 class="mb-4">Driver profile</h1>
+      <button v-if="!isOwnProfile" class="back-link" type="button" @click="goBack">&larr; Back</button>
+      <h1 class="mb-4">{{ isOwnProfile ? 'My profile' : 'Community member' }}</h1>
 
       <div v-if="loading" class="state-panel" role="status">
         <LoadingSpinner />
@@ -172,9 +181,9 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
             <article v-for="review in reviews" :key="review._id" class="review-card">
               <header>
                 <h3>{{ carparkForReview(review)?.name || review.carparkId }}</h3>
-                <div class="review-score"><StarRating :model-value="review.overallRating" readonly /><strong>{{ review.overallRating }}/5</strong></div>
+                <small class="review-date">{{ review.updatedAt !== review.createdAt ? 'Updated' : 'Posted' }} {{ formattedDate(review.updatedAt) }}</small>
               </header>
-              <p class="review-date">{{ review.updatedAt !== review.createdAt ? 'Updated' : 'Posted' }} {{ formattedDate(review.updatedAt) }}</p>
+              <div class="review-score"><StarRating :model-value="review.overallRating" readonly /><strong>{{ review.overallRating }}/5</strong></div>
               <p class="review-comment">{{ review.comment }}</p>
               <p class="review-helpful"><span aria-hidden="true">👍</span> Helped {{ review.helpfulCount || 0 }} {{ review.helpfulCount === 1 ? 'driver' : 'drivers' }}</p>
               <dl class="review-ratings">
@@ -193,6 +202,8 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
 </template>
 
 <style scoped>
+.back-link { display: inline-flex; align-items: center; gap: .35rem; margin-bottom: .75rem; padding: .5rem .2rem; border: 0; color: #087a58; background: transparent; font-weight: 750; }
+.back-link:hover { color: #055c42; text-decoration: underline; }
 .profile-page { min-height: 100%; padding: 2.5rem 1.5rem 5rem; background-color: #f0fbf6; background-image: radial-gradient(#bfe9d7 1.1px, transparent 1.1px); background-size: 19px 19px; }
 .profile-inner { width: min(100%, 64rem); margin: auto; }
 .profile-page h1 { font-size: clamp(2.5rem, 5vw, 4rem); }
@@ -219,10 +230,11 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
 .contributor-score .levels-hint { margin-top: .4rem; font-size: .7rem; font-weight: 750; text-transform: none; }
 .state-panel { padding: 3rem 1rem; border: 2px dashed #9ebfb3; border-radius: 1.25rem; background: #ffffffbb; text-align: center; }
 .review-list { display: grid; gap: 1rem; }
-.review-card header, .review-score { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.review-card header { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+.review-score { display: flex; align-items: center; gap: .5rem; margin: .5rem 0 1rem; }
 .review-card h3 { margin: 0; font-size: 1.1rem; font-weight: 750; overflow-wrap: anywhere; }
 .review-score { flex-shrink: 0; }
-.review-date { margin: .5rem 0 1rem; font-size: .85rem; }
+.review-date { flex-shrink: 0; margin-top: .2rem; font-size: .8rem; white-space: nowrap; text-align: right; }
 .review-comment { white-space: pre-wrap; overflow-wrap: anywhere; }
 .review-helpful { display: inline-flex; align-items: center; gap: .35rem; margin: 0 0 .8rem; padding: .35rem .6rem; border-radius: 2rem; color: #087a58; background: #e7f8f0; font-size: .78rem; font-weight: 750; }
 .review-ratings { display: flex; flex-wrap: wrap; gap: .5rem; margin: 0; }
@@ -234,6 +246,5 @@ watch(() => route.params.userId, loadProfile, { immediate: true })
 @media (max-width: 575px) {
   .account-card { flex-wrap: wrap; }
   .profile-stats { width: 100%; margin: 0; flex-direction: column; }.profile-stats .review-count { width: 100%; border-top: 1px solid #d6e5df; border-left: 0; }.contributor-score { width: 100%; }
-  .review-card header { align-items: flex-start; flex-direction: column; }
 }
 </style>

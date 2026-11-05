@@ -87,14 +87,22 @@ const availabilityBadge = computed(() => {
 })
 
 const formattedDistance = computed(() => {
-  if (carparkDetails.value?.walkingDistance == null) return '—'
-  const meters = Number(carparkDetails.value?.walkingDistance)
+  const raw = carparkDetails.value?.walkingDistance
+  // Number(null) is 0, so check for "no value" first, otherwise it shows "0 m"
+  if (raw == null || raw === '' || !hasWalkingInfo.value) return '—'
+  const meters = Number(raw)
   if (!Number.isFinite(meters)) return '—'
   if (meters >= 1000) {
     return `${(meters / 1000).toFixed(2)} km (${meters} m)`
   }
   return `${meters} m`
 })
+
+// Walking figures only exist when the page was opened for a destination
+// (from Results / Compare / Map). From a profile or Community there is none.
+const hasWalkingInfo = computed(() =>
+  Boolean(carparkDetails.value?.destination) && carparkDetails.value?.walkingDistance != null
+)
 
 const routeGeometry = computed(() => carparkDetails.value?.routeGeometry || null)
 const walkingStatus = computed(() => carparkDetails.value?.destination
@@ -360,7 +368,7 @@ watch(
                 {{ formattedDistance }}
               </div>
             </div>
-            <p class="text-muted small mb-0 mt-2">{{ carparkDetails.walkingDistance == null ? walkingStatus : 'Calculated via OneMap Routing API' }}</p>
+            <p class="text-muted small mb-0 mt-2">{{ hasWalkingInfo ? 'Calculated via OneMap Routing API' : walkingStatus }}</p>
           </div>
         </div>
       </div>
@@ -372,7 +380,7 @@ watch(
             <div>
               <p class="text-uppercase text-muted small fw-semibold mb-2">Estimated Walk Time</p>
               <div class="metric-value my-2">
-                {{ carparkDetails.walkingTime ?? '—' }} mins
+                {{ carparkDetails.walkingTime != null ? `${carparkDetails.walkingTime} mins` : '—' }}
               </div>
             </div>
             <p v-if="carparkDetails.walkingTime != null" class="text-muted small mb-0 mt-2">

@@ -27,6 +27,7 @@ const vehicleOptions = [
 const loadingFavourites = ref(true)
 const loadingCarparks = ref(false)
 const favouritesError = ref('')
+const activeTab = ref('places')
 const carparksError = ref('')
 let nearbyRequest = 0
 onBeforeUnmount(() => { nearbyRequest += 1 })
@@ -49,6 +50,8 @@ async function loadFavourites() {
     const { data } = await api.get('/favourites')
     favourites.value = data.favourites.filter(favourite => favourite.type === 'destination')
     carparkFavourites.value = data.favourites.filter(favourite => favourite.type === 'carpark')
+    // Open the tab that actually has something in it.
+    if (!favourites.value.length && carparkFavourites.value.length) activeTab.value = 'carparks'
   } catch (error) {
     favouritesError.value = error.response?.data?.message || 'Unable to load favourites.'
   } finally {
@@ -147,15 +150,36 @@ onMounted(loadFavourites)
 
     <div v-if="favouritesError" class="alert alert-danger" role="alert">{{ favouritesError }}</div>
     <div v-if="loadingFavourites" class="state-panel"><LoadingSpinner /><p class="mt-3 mb-0">Loading favourites…</p></div>
-    <div v-else-if="!favouritesError && favourites.length === 0 && carparkFavourites.length === 0" class="state-panel">
-      <h2 class="h5">No favourites yet</h2>
-      <p class="text-secondary">Save a destination or tap the heart on a carpark card.</p>
+    <template v-else-if="!favouritesError">
+    <ul class="nav nav-pills favourite-tabs mb-4" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" :class="{ active: activeTab === 'places' }" type="button" role="tab"
+          :aria-selected="activeTab === 'places'" @click="activeTab = 'places'">
+          Places you often visit <span class="tab-count">{{ favourites.length }}</span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" :class="{ active: activeTab === 'carparks' }" type="button" role="tab"
+          :aria-selected="activeTab === 'carparks'" @click="activeTab = 'carparks'">
+          Your favourite carparks <span class="tab-count">{{ carparkFavourites.length }}</span>
+        </button>
+      </li>
+    </ul>
+
+    <!-- Tab 1: places -->
+    <template v-if="activeTab === 'places'">
+    <div v-if="!favourites.length" class="state-panel">
+      <h2 class="h5">No saved places yet</h2>
+      <p class="text-secondary">Save places you often go to, like home, work or a mall, from the search results page.</p>
       <RouterLink class="btn btn-success" to="/">Find a destination</RouterLink>
     </div>
 
-    <section v-else-if="favourites.length" class="saved-destinations">
+    <section v-else class="saved-destinations">
       <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
-        <h2 class="h4 mb-0">Favourite destinations</h2>
+        <div>
+          <h2 class="h4 mb-1">Places you often visit</h2>
+          <p class="small text-secondary mb-0">Pick a place to see the best carparks near it right now.</p>
+        </div>
         <span class="small text-secondary">{{ favourites.length }} saved</span>
       </div>
       <div class="saved-destination-grid">
@@ -165,7 +189,7 @@ onMounted(loadFavourites)
             <span class="saved-destination-icon" aria-hidden="true"><img :src="destinationIconUrl" alt="" /></span>
             <span class="destination-copy">
               <strong>{{ favourite.label }}</strong>
-              <span class="destination-status">{{ activeFavourite?.id === favourite.id ? 'Showing nearby carparks' : 'Saved destination' }}</span>
+              <span class="destination-status">{{ activeFavourite?.id === favourite.id ? 'Showing nearby carparks' : 'Saved place' }}</span>
             </span>
             <span class="destination-action">View nearby carparks <span aria-hidden="true">→</span></span>
           </button>
@@ -221,9 +245,21 @@ onMounted(loadFavourites)
         </div>
       </section>
     </section>
-    <section v-if="!loadingFavourites && carparkFavourites.length" class="saved-carparks mb-4">
+    </template>
+
+    <!-- Tab 2: carparks -->
+    <template v-else>
+    <div v-if="!carparkFavourites.length" class="state-panel">
+      <h2 class="h5">No favourite carparks yet</h2>
+      <p class="text-secondary">Tap the heart on any carpark card to keep it here.</p>
+      <RouterLink class="btn btn-success" to="/">Search carparks</RouterLink>
+    </div>
+    <section v-else class="saved-carparks mb-4">
       <div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mb-3">
-        <h2 class="h4 mb-0">Favourite carparks</h2>
+        <div>
+          <h2 class="h4 mb-1">Your favourite carparks</h2>
+          <p class="small text-secondary mb-0">Carparks you like to park at. Open one to check live lots.</p>
+        </div>
         <span class="small text-secondary">{{ carparkFavourites.length }} saved</span>
       </div>
       <div class="saved-carpark-grid">
@@ -231,7 +267,6 @@ onMounted(loadFavourites)
           <span class="saved-parking-icon" aria-hidden="true">P</span>
           <div>
             <h3>{{ favourite.label }}</h3>
-            <p>{{ favourite.carparkId }}</p>
           </div>
           <div class="saved-carpark-footer">
             <RouterLink :to="favouriteDetailsLink(favourite)">View details →</RouterLink>
@@ -246,13 +281,8 @@ onMounted(loadFavourites)
         </article>
       </div>
     </section>
-    <section v-if="!loadingFavourites && !favourites.length && carparkFavourites.length" class="destination-empty">
-      <div>
-        <h2 class="h5 mb-1">No saved destinations yet</h2>
-        <p class="mb-0">Save a destination from your search results for quick access.</p>
-      </div>
-      <RouterLink class="selection-hint" to="/">Find a destination →</RouterLink>
-    </section>
+    </template>
+    </template>
     </div>
   </section>
 </template>
@@ -260,6 +290,12 @@ onMounted(loadFavourites)
 <style scoped>
 .favourites-page { min-height: 100%; padding: 2.5rem 1.5rem 5rem; background-color: #f0fbf6; background-image: radial-gradient(#bfe9d7 1.1px, transparent 1.1px); background-size: 19px 19px; }
 .favourites-inner { width: min(100%, 76rem); margin: auto; }
+.favourite-tabs { gap: .5rem; flex-wrap: wrap; }
+.favourite-tabs .nav-link { display: inline-flex; align-items: center; gap: .5rem; padding: .6rem 1.1rem; border: 1.5px solid #174f40; border-radius: 2rem; color: #0f5c4d; background: white; font-weight: 700; }
+.favourite-tabs .nav-link:hover { background: #dff7ec; }
+.favourite-tabs .nav-link.active { color: #06271f; background: #2cd790; border-color: #087a58; }
+.tab-count { display: inline-grid; min-width: 1.5rem; height: 1.5rem; padding: 0 .4rem; place-items: center; border-radius: 1rem; background: #e6f3ee; font-size: .75rem; }
+.nav-link.active .tab-count { background: rgba(255, 255, 255, .6); }
 .favourites-page h1 { font-size: clamp(2.5rem, 5vw, 4rem); }
 .state-panel { text-align: center; padding: 3rem 1rem; border: 2px dashed #9ebfb3; border-radius: 1.3rem; background: rgba(255, 255, 255, .72); }
 .destination-card { position: relative; display: flex; border: 1.5px solid #b8cec5; border-radius: 1rem; background: #f7fcf9; }
