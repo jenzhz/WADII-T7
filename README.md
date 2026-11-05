@@ -1,6 +1,4 @@
-# CarparkCompare SG — WADII-T7
-
-IS216 Web Application Development II · Singapore Management University · 2026–2027 Term 1
+# CarparkCompare SG — Team 7
 
 CarparkCompare SG helps drivers compare parking near a Singapore destination using current lot availability, walking routes, estimated parking costs and community experiences.
 
