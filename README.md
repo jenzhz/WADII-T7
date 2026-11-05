@@ -443,7 +443,7 @@ WADII-T7/
 - Initial structure
 - Explanations of Vue/JavaScript/API/Git concepts
 - Debugging guidance
-- CSS, responsive styling, animations
+- Help with styling, responsive styling, animations
 - Test inputs and sample/mock-data assistance.
 - Deployment configuration
 - README/documentation
