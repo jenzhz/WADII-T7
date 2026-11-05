@@ -77,7 +77,6 @@ async function submitRegistration() {
       </div>
 
       <div class="brand-copy">
-        <p class="brand-eyebrow">Your account</p>
         <h1>Less searching.<br><span>Easier parking.</span></h1>
         <p>Sign in to search, compare, and save Singapore carparks.</p>
       </div>
@@ -198,15 +197,6 @@ async function submitRegistration() {
   z-index: 2;
   width: min(34rem, 90%);
   margin-block: auto;
-}
-
-.brand-eyebrow {
-  margin-bottom: .75rem;
-  color: #2cd790;
-  font-size: .78rem;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
 }
 
 .brand-copy h1 {

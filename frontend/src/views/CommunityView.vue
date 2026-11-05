@@ -184,7 +184,6 @@ onMounted(loadCommunity)
     <div class="community-inner">
       <header class="community-hero">
         <div>
-          <p class="eyebrow">Driver-to-driver knowledge</p>
           <h1>Parking Community</h1>
           <p class="hero-copy">Know what parking feels like before you arrive.</p>
         </div>
@@ -201,7 +200,7 @@ onMounted(loadCommunity)
       <template v-else>
         <section class="difficulty-section difficulty-legend" aria-labelledby="difficulty-heading">
           <div class="section-heading">
-            <div><p class="section-kicker">Community verdicts</p><h2 id="difficulty-heading">How easy is it to park?</h2><p>Labels are calculated from driver votes and update as the community contributes.</p></div>
+            <div><h2 id="difficulty-heading">How easy is it to park?</h2><p>Labels are calculated from driver votes and update as the community contributes.</p></div>
           </div>
           <div class="difficulty-columns">
             <article v-for="group in difficultyGroups" :key="group.value" class="difficulty-column" :class="`difficulty-panel-${group.value}`">
@@ -213,7 +212,7 @@ onMounted(loadCommunity)
 
         <section class="guide-section guide-section-top" aria-labelledby="guide-heading">
           <div class="section-heading">
-            <div><p class="section-kicker">Transparent ratings</p><h2 id="guide-heading">Community Parking Guide</h2><p>See the vote distribution behind every verdict—not just the final label.</p></div>
+            <div><h2 id="guide-heading">Community Parking Guide</h2><p>See the vote distribution behind every verdict—not just the final label.</p></div>
           </div>
 
           <div class="guide-controls">
@@ -276,7 +275,7 @@ onMounted(loadCommunity)
         </section>
 
         <section class="beginner-card beginner-wide">
-          <div><p class="section-kicker">New-driver shortlist</p><h2>Best for beginners</h2><p>Based on difficulty votes, space, access, and signage.</p></div>
+          <div><h2>Best for beginners</h2><p>Based on difficulty votes, space, access, and signage.</p></div>
           <ol v-if="beginnerPicks.length" class="ranked-list">
             <li v-for="(carpark, index) in beginnerPicks" :key="carpark.id">
               <span>{{ index + 1 }}</span>
@@ -295,8 +294,6 @@ onMounted(loadCommunity)
 .community-page { min-height: 100%; padding: 3.5rem 1.5rem 6rem; color: #10243a; background-color: #f0fbf6; background-image: radial-gradient(#bfe9d7 1.1px, transparent 1.1px); background-size: 19px 19px; }
 .community-inner { width: min(100%, 76rem); margin: auto; }
 .community-hero { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(22rem, .65fr); align-items: end; gap: 2rem; padding: 2.2rem; border: 2px solid #174f40; border-radius: 1.6rem; background: #0b4b3d; color: white; box-shadow: 0 14px 35px #073f3218; }
-.eyebrow, .section-kicker { margin: 0 0 .5rem; color: #087a58; font-size: .75rem; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
-.community-hero .eyebrow { color: #69e9b5; }
 .community-hero h1 { margin: 0; font-size: clamp(2.6rem, 6vw, 4.7rem); line-height: .98; }
 .hero-copy { max-width: 42rem; margin: 1rem 0 0; color: #c9eddf; font-size: 1.08rem; line-height: 1.6; }
 .community-stats { display: grid; grid-template-columns: repeat(3, 1fr); overflow: hidden; border: 1px solid #4f8d78; border-radius: 1rem; background: #073f32; }

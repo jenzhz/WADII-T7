@@ -202,7 +202,7 @@ watch(() => props.carparkId, loadReviews)
 <template>
   <section id="community-reviews" class="community-reviews">
     <div class="community-heading">
-      <div><p class="eyebrow">Community reviews</p><h2>What drivers think</h2></div>
+      <div><h2>What drivers think</h2></div>
       <button v-if="user" class="write-button" type="button" @click="startReview()">Write a review</button>
       <RouterLink v-else class="write-button" to="/login">Log in to review</RouterLink>
     </div>
