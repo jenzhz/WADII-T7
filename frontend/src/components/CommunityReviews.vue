@@ -60,14 +60,20 @@ const missingFields = computed(() => [
   !form.comment.trim() && 'a written review',
 ].filter(Boolean))
 
+// First load shows "Loading reviews…". After that (posting, editing or deleting
+// a review/reply) the list stays on screen and is updated quietly in the
+// background, so the page does not flash or jump.
+let loadedCarparkId = null
 async function loadReviews() {
   refreshUser()
-  loading.value = true
+  const quiet = loadedCarparkId === props.carparkId
+  loading.value = !quiet
   error.value = ''
   try {
     const data = await getCarparkReviews(props.carparkId)
     reviews.value = data.reviews
     summary.value = data.summary
+    loadedCarparkId = props.carparkId
   } catch (err) {
     error.value = apiMessage(err, 'Unable to load community reviews.')
   } finally {
