@@ -343,7 +343,6 @@ watch(
                 {{ formattedDistance }}
               </div>
             </div>
-            <p class="text-muted small mb-0 mt-2">Calculated via OneMap Routing API</p>
           </div>
         </div>
       </div>
@@ -358,9 +357,6 @@ watch(
                 {{ carparkDetails.walkingTime ?? '—' }} mins
               </div>
             </div>
-            <p class="text-muted small mb-0 mt-2">
-              Approx. {{ carparkDetails.totalTimeSeconds || (carparkDetails.walkingTime || 0) * 60 }}s pedestrian walk
-            </p>
           </div>
         </div>
       </div>

@@ -237,9 +237,11 @@ watch(() => props.carparkId, loadReviews)
                 ><span aria-hidden="true">{{ contributorIcon(review.user.contributor?.level) }}</span> {{ review.user.contributor?.level || 'New Contributor' }}</button>
                 <StarRating :model-value="review.overallRating" readonly />
               </div>
-              <small>{{ formattedDate(review.updatedAt) }}<span v-if="review.updatedAt !== review.createdAt"> · edited</span></small>
             </div>
-            <div v-if="isMine(review)" class="owner-actions"><button @click="startReview(review)">Edit</button><button class="danger" @click="removeReview(review)">Delete</button></div>
+            <div class="review-side">
+              <small class="review-time">{{ formattedDate(review.updatedAt) }}<span v-if="review.updatedAt !== review.createdAt"> · edited</span></small>
+              <div v-if="isMine(review)" class="owner-actions"><button @click="startReview(review)">Edit</button><button class="danger" @click="removeReview(review)">Delete</button></div>
+            </div>
           </header>
           <span v-if="parkingDifficultyDetails(review.parkingDifficulty)" class="difficulty-badge" :class="`difficulty-${review.parkingDifficulty}`" :title="parkingDifficultyDetails(review.parkingDifficulty).description">Parking: {{ parkingDifficultyDetails(review.parkingDifficulty).label }}</span>
           <p class="review-comment">“{{ review.comment }}”</p>
@@ -282,7 +284,10 @@ watch(() => props.carparkId, loadReviews)
 .contributor-badge { cursor: pointer; }
 .contributor-badge:hover { box-shadow: 0 0 0 2px #087a5825; }
 .review-author-line { flex-wrap: wrap; }
+.review-side { display: flex; flex-direction: column; align-items: flex-end; gap: .25rem; flex-shrink: 0; text-align: right; }
+.review-time { color: #6c7d76; font-size: .8rem; white-space: nowrap; }
+.review-side .owner-actions button { padding: 0 0 0 .6rem; }
 .replies { margin-top: 1.25rem; padding: 1rem 0 0 1.25rem; border-left: 3px solid #d8eee5; }.replies h4 { font-size: .9rem; }.replies h4 span { color: #71817b; }.reply { position: relative; margin: .75rem 0; padding: .8rem; border-radius: .65rem; background: #f6faf8; }.reply > div:first-child { display: flex; justify-content: space-between; }.reply small { color: #71817b; }.reply p { margin: .4rem 0 0; }.reply-actions { display: flex; justify-content: end; gap: .5rem; }.reply-form { display: flex; gap: .5rem; margin-top: .75rem; }.reply-form button { padding: .5rem .9rem; border: 0; border-radius: .6rem; color: white; background: #087a58; font-weight: 700; }
 .review-state, .notice { margin-top: 1.25rem; padding: 1.25rem; border-radius: .8rem; background: #f2f7f5; text-align: center; }.notice { text-align: left; }.success { color: #075d45; background: #e5f8ef; }.error { color: #9d2929; background: #fdeaea; }
-@media (max-width: 700px) { .community-reviews { padding: 1.2rem; }.community-heading, .review-card header { flex-direction: column; }.rating-summary { grid-template-columns: 1fr; }.overall-score { padding-bottom: 1rem; border-right: 0; border-bottom: 1px solid #c8ded5; }.rating-fields, .difficulty-options { grid-template-columns: 1fr; }.required-rating { align-items: flex-start; flex-direction: column; grid-column: auto; }.rating-fields label { align-items: start; flex-direction: column; }.reply-form { flex-direction: column; } }
+@media (max-width: 700px) { .community-reviews { padding: 1.2rem; }.community-heading { flex-direction: column; }.rating-summary { grid-template-columns: 1fr; }.overall-score { padding-bottom: 1rem; border-right: 0; border-bottom: 1px solid #c8ded5; }.rating-fields, .difficulty-options { grid-template-columns: 1fr; }.required-rating { align-items: flex-start; flex-direction: column; grid-column: auto; }.rating-fields label { align-items: start; flex-direction: column; }.reply-form { flex-direction: column; } }
 </style>
