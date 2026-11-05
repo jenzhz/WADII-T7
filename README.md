@@ -11,7 +11,7 @@ CarparkCompare SG helps drivers compare parking near a Singapore destination usi
 | **Live application — start here** | **https://ccsg-frontend.vercel.app/** |
 | Backend API health | https://ccsg-backend.vercel.app/api/health |
 | API health through the website | https://ccsg-frontend.vercel.app/api/health |
-| Source repository | https://github.com/jenzhz/WADII-T7 — private; access is required |
+| Source repository | https://github.com/jenzhz/WADII-T7 |
 | Development / deployed branch | `dev` |
 | Presentation video | **Pending — add the final public/unlisted YouTube URL before submission** |
 
