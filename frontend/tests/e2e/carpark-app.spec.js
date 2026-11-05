@@ -24,7 +24,7 @@ test('logs in, searches for a destination and opens the contributor levels', asy
   await page.getByRole('button', { name: 'Search', exact: true }).click()
 
   await expect(page.getByRole('heading', { name: 'Nearby carparks', exact: true })).toBeVisible()
-  await expect(page.getByText('Retrieved', { exact: false })).toBeVisible()
+  await expect(page.getByText('Updated', { exact: false })).toBeVisible()
 
   await page.getByRole('link', { name: 'Profile', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Your reviews', exact: true })).toBeVisible()
