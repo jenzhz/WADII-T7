@@ -1,6 +1,4 @@
-# CarparkCompare SG — WADII-T7
-
-IS216 Web Application Development II · Singapore Management University · 2026–2027 Term 1
+# CarparkCompare SG — Team 7
 
 CarparkCompare SG helps drivers compare parking near a Singapore destination using current lot availability, walking routes, estimated parking costs and community experiences.
 
@@ -11,7 +9,7 @@ CarparkCompare SG helps drivers compare parking near a Singapore destination usi
 | **Live application — start here** | **https://ccsg-frontend.vercel.app/** |
 | Backend API health | https://ccsg-backend.vercel.app/api/health |
 | API health through the website | https://ccsg-frontend.vercel.app/api/health |
-| Source repository | https://github.com/jenzhz/WADII-T7 — private; access is required |
+| Source repository | https://github.com/jenzhz/WADII-T7 |
 | Development / deployed branch | `dev` |
 | Presentation video | **Pending — add the final public/unlisted YouTube URL before submission** |
 
@@ -443,7 +441,7 @@ WADII-T7/
 - Initial structure
 - Explanations of Vue/JavaScript/API/Git concepts
 - Debugging guidance
-- CSS, responsive styling, animations
+- Help with styling, responsive styling, animations
 - Test inputs and sample/mock-data assistance.
 - Deployment configuration
 - README/documentation
