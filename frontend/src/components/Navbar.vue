@@ -11,7 +11,7 @@ const mapTarget = ref('/map')
 const hasSavedSearch = ref(false)
 const currentUser = ref(getCurrentUser())
 const signedIn = ref(Boolean(currentUser.value))
-// Hamburger menu (small screens only). Controlled by Vue instead of Bootstrap's
+// Hamburger menu below the desktop breakpoint. Controlled by Vue instead of Bootstrap's
 // data attributes, so it can close itself after every page change.
 const menuOpen = ref(false)
 
@@ -94,7 +94,7 @@ watch(() => route.fullPath, () => {
 <template>
   <header>
     <a class="skip-link" href="#main-content">Skip to content</a>
-    <nav class="navbar navbar-expand-md bg-body-tertiary border-bottom" aria-label="Primary navigation">
+    <nav class="navbar navbar-expand-xl bg-body-tertiary" aria-label="Primary navigation">
       <div class="container">
         <RouterLink class="navbar-brand brand-logo" to="/" aria-label="CarparkCompare SG home">
           <span class="brand-mark" aria-hidden="true">P</span>
@@ -111,7 +111,7 @@ watch(() => route.fullPath, () => {
           <span class="navbar-toggler-icon"></span>
         </button>
         <div id="primary-nav-links" class="collapse navbar-collapse" :class="{ show: menuOpen }">
-        <div class="navbar-nav ms-md-auto align-items-md-center gap-2 gap-md-3">
+        <div class="navbar-nav ms-xl-auto align-items-xl-center gap-2 gap-xl-3">
           <RouterLink v-if="signedIn" class="nav-link" :class="{ active: ['home', 'results'].includes(route.name) }" :to="searchTarget">
             {{ hasSavedSearch ? 'Results' : 'Search' }}
           </RouterLink>
@@ -136,6 +136,9 @@ header {
   position: sticky;
   top: 0;
   z-index: 1100;
+  width: 100%;
+  background: #f8f9fa;
+  border-bottom: 1px solid #d9e3df;
 }
 
 .brand-logo {
@@ -175,12 +178,12 @@ header {
   box-shadow: none;
 }
 
-.logout-button { border-color: #087a58; border-radius: 2rem; color: #075d45; font-weight: 700; }
+.logout-button { border-color: #087a58; border-radius: 2rem; color: #075d45; font-weight: 700; white-space: nowrap; }
 .navbar-user { display: inline-flex; align-items: center; padding-inline: .25rem; color: #10243a; font-weight: 750; }
-/* Hamburger button and the opened menu on small screens */
+/* Collapse before the brand and all navigation links become too wide for one row. */
 .navbar-toggler { border: 1.5px solid #174f40; border-radius: .7rem; padding: .35rem .6rem; }
 .navbar-toggler:focus { box-shadow: 0 0 0 .2rem #2cd79040; }
-@media (max-width: 767.98px) {
+@media (max-width: 1199.98px) {
   .navbar-collapse { padding: .75rem 0 .5rem; }
   .navbar-nav .nav-link { padding-block: .6rem; }
   .navbar-nav .navbar-user { padding-inline: .75rem; }
