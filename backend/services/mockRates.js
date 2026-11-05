@@ -1,31 +1,24 @@
 // SAMPLE (MOCK) parking rates for ALL carpark types — NOT official data.
-// Used for demos: weekday and weekend prices differ, and every carpark gets an
-// estimated cost, so "Cheapest" and the Compare ranking change by day.
 // Turn on with USE_MOCK_RATES=true in backend/.env (real HDB rules and mall CSV are used otherwise).
 
 export const MOCK_SOURCE = 'Sample data – not official rates'
 
-// HDB and public carparks: simple rates, dollars per 30 minutes
 const MOCK_PLANS = {
   HDB: { label: 'HDB carpark', weekday: 0.6, weekend: 0.4 },
   URA: { label: 'Public carpark', weekday: 0.8, weekend: 0.5 },
 }
 
-// Malls: every mall has its own price (like real malls), in the usual mall format:
-//   7am-6pm: first hour, then each extra 30 min;  after 6pm: one flat price per entry.
-// Weekend prices are higher (malls are busier). Picked by a stable hash of the mall
-// name, so the same mall always shows the same sample prices.
 const MALL_TIERS = [
-  { firstHour: 1.07, extra30: 0.55, evening: 2.14 }, // suburban mall
+  { firstHour: 1.07, extra30: 0.55, evening: 2.14 },
   { firstHour: 1.2, extra30: 0.6, evening: 2.5 },
   { firstHour: 1.5, extra30: 0.75, evening: 3.0 },
-  { firstHour: 2.14, extra30: 1.07, evening: 3.5 }, // town centre
+  { firstHour: 2.14, extra30: 1.07, evening: 3.5 },
   { firstHour: 2.5, extra30: 1.2, evening: 4.0 },
-  { firstHour: 3.0, extra30: 1.5, evening: 5.0 }, // city / Orchard
+  { firstHour: 3.0, extra30: 1.5, evening: 5.0 },
 ]
 const MALL_DAY_START = 7
 const MALL_DAY_END = 18
-const WEEKEND_EXTRA = 0.2 // added to each daytime price at weekends
+const WEEKEND_EXTRA = 0.2
 
 function mallPlan(carpark) {
   let hash = 0
@@ -49,7 +42,6 @@ export function isMockRatesEnabled() {
   return process.env.USE_MOCK_RATES === 'true'
 }
 
-// Singapore is always UTC+8, so this works on any server timezone
 function singaporeTime(date) {
   const sg = new Date(date.getTime() + 8 * 60 * 60_000)
   return { day: sg.getUTCDay(), hour: sg.getUTCHours() }
@@ -97,8 +89,6 @@ function getMockMallRateInfo(carpark, date) {
   }
 }
 
-// Mall cost: daytime = first hour + each extra 30 min; once the evening starts
-// (or if parking starts in the evening) one flat per-entry price is added.
 function estimateMockMallCost(carpark, minutes, start) {
   const plan = mallPlan(carpark)
   let total = 0
@@ -107,10 +97,10 @@ function estimateMockMallCost(carpark, minutes, start) {
     const blockStart = new Date(start.getTime() + i * 30 * 60_000)
     const prices = mallPrices(plan, isWeekend(blockStart))
     if (!isMallDaytime(blockStart)) {
-      total += prices.evening // flat price for the rest of the stay
+      total += prices.evening
       break
     }
-    if (daytimeBlocks === 0) total += prices.firstHour // covers the first two 30-min blocks
+    if (daytimeBlocks === 0) total += prices.firstHour
     else if (daytimeBlocks >= 2) total += prices.extra30
     daytimeBlocks += 1
   }
@@ -142,7 +132,6 @@ export function getMockRateInfo(carpark, date = new Date()) {
   }
 }
 
-// Adds each 30-minute block, so a stay that crosses into the weekend is correct
 export function estimateMockCost(carpark, minutes, start = new Date()) {
   if (carpark.agency === 'LTA') return estimateMockMallCost(carpark, minutes, start)
   const plan = planFor(carpark)

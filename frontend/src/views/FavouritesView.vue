@@ -50,7 +50,6 @@ async function loadFavourites() {
     const { data } = await api.get('/favourites')
     favourites.value = data.favourites.filter(favourite => favourite.type === 'destination')
     carparkFavourites.value = data.favourites.filter(favourite => favourite.type === 'carpark')
-    // Open the tab that actually has something in it.
     if (!favourites.value.length && carparkFavourites.value.length) activeTab.value = 'carparks'
   } catch (error) {
     favouritesError.value = error.response?.data?.message || 'Unable to load favourites.'
@@ -58,7 +57,6 @@ async function loadFavourites() {
     loadingFavourites.value = false
   }
 
-  // Saved places can be shown before the optional live EV information arrives.
   if (!favouritesError.value && carparkFavourites.value.length) {
     try {
       const { data: liveData } = await api.get('/carparks')

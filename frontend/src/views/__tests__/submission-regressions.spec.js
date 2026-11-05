@@ -94,7 +94,6 @@ describe('results navigation and favourites', () => {
     wrapper.findAllComponents(FilterDropdown).find(dropdown => dropdown.props('id') === 'distance').vm.$emit('update:modelValue', '5000')
     wrapper.findAllComponents(FilterDropdown).find(dropdown => dropdown.props('id') === 'sort').vm.$emit('update:modelValue', 'lots')
     await flushPromises()
-    // Availability ranking is limited to 1 km; the map must show that same area.
     expect(link.props('to').query.radius).toBe('1000')
   })
 

@@ -1,6 +1,5 @@
 import mongoose from 'mongoose'
 
-// Saves a carpark or destination for a user without storing live availability.
 const favouriteSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

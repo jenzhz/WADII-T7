@@ -10,14 +10,11 @@ import { mockCarparks, mockDestination } from '@/data/mockCarparks'
 import { filterAndSortCarparks, normaliseCarparks } from '@/utils/carparkResults'
 
 const route = useRoute()
-// Switch to "live" only once the nearby endpoint follows docs/nearby-results.md.
 const isDemo = import.meta.env.VITE_CARPARK_DATA_MODE === 'sample'
 const destination = computed(() => isDemo ? mockDestination.name : String(route.query.destination || ''))
 const vehicleType = ref('C')
-// Distance and EV filter can come from the URL (e.g. coming back from the map)
 const maxDistance = ref(['250', '500', '1000', '2000', '5000'].includes(String(route.query.radius)) ? String(route.query.radius) : '1000')
 const sortBy = ref('walk')
-// Options for the filter dropdowns (Bootstrap Dropdown, see FilterDropdown.vue)
 const vehicleOptions = [
   { value: 'C', label: 'Car' },
   { value: 'Y', label: 'Motorcycle' },
@@ -53,7 +50,6 @@ const contextQuery = computed(() => ({
   ...route.query, destination: destination.value, vehicleType: vehicleType.value,
   radius: maxDistance.value, ev: evOnly.value ? '1' : undefined, sort: sortBy.value,
 }))
-// The map shows the same carparks as this page: same distance and EV filter
 const mapQuery = computed(() => ({
   ...contextQuery.value,
   radius: sortBy.value === 'lots' ? String(Math.min(Number(maxDistance.value), 1000)) : maxDistance.value,
@@ -65,17 +61,11 @@ const results = computed(() => filterAndSortCarparks(carparks.value, {
   evOnly: evOnly.value, sortBy: sortBy.value,
 }))
 const selectedCarparks = computed(() => carparks.value.filter(carpark => selectedIds.value.includes(carpark.id)))
-// Time only (e.g. "4:15 pm"): the data is always from today
 const updatedLabel = computed(() => updatedAt.value
   ? updatedAt.value.toLocaleTimeString('en-SG', { hour: 'numeric', minute: '2-digit' })
   : '')
 
-// ---------------------------------------------------------------------------
-// Real walking time (same OneMap route as the details page) for the carparks
-// shown first. The list appears immediately; walking times fill in as they
-// arrive, a few at a time, so the page stays fast.
-// ---------------------------------------------------------------------------
-const WALKING_FIRST = 6 // fetched straight away (the first row or two)
+const WALKING_FIRST = 6
 const WALKING_PARALLEL = 3
 const walkingRequested = new Set()
 let walkingQueue = []
@@ -110,7 +100,6 @@ async function runWalkingQueue() {
         if (batch === walkingBatch && data?.walkingTime != null) setWalking(carpark.id, data)
       })
       .catch(() => {
-        // Keep "—" for this card; the details page can still show the route
       })
       .finally(() => {
         walkingActive -= 1
@@ -128,11 +117,8 @@ function requestWalking(carpark) {
   runWalkingQueue()
 }
 
-// The first few cards get walking data straight away (load, filter, sort)...
 watch(results, async (list) => {
   list.slice(0, WALKING_FIRST).forEach(requestWalking)
-  // Re-check which cards are on screen (observe() reports each card's current state),
-  // e.g. after Refresh or a vehicle change, and forget cards that are no longer shown.
   await nextTick()
   if (!cardObserver) return
   cardObserver.disconnect()
@@ -142,10 +128,8 @@ watch(results, async (list) => {
   }
 })
 
-// ...and every other card gets it when it scrolls into view, so any card the
-// user can see shows the same walking distance as its details page.
 let cardObserver = null
-const observedCards = new Map() // element -> carpark id
+const observedCards = new Map()
 onMounted(() => {
   if (!('IntersectionObserver' in window)) return
   cardObserver = new IntersectionObserver((entries) => {
@@ -154,7 +138,7 @@ onMounted(() => {
       const id = observedCards.get(entry.target)
       requestWalking(results.value.find(carpark => carpark.id === id))
     }
-  }, { rootMargin: '200px 0px' }) // start a little before the card appears
+  }, { rootMargin: '200px 0px' })
   for (const element of observedCards.keys()) cardObserver.observe(element)
 })
 onBeforeUnmount(() => {
@@ -163,7 +147,6 @@ onBeforeUnmount(() => {
   latestRequest += 1
 })
 
-// Template ref for each card wrapper
 function trackCard(element, id) {
   if (!element) return
   if (observedCards.get(element) === id) return
@@ -171,7 +154,6 @@ function trackCard(element, id) {
   cardObserver?.observe(element)
 }
 
-// Users may select any number, but Compare only works with 2 to 3 carparks
 const MAX_COMPARE = 3
 const tooManySelected = computed(() => selectedIds.value.length > MAX_COMPARE)
 const canCompare = computed(() => selectedIds.value.length >= 2 && !tooManySelected.value)
@@ -309,7 +291,6 @@ async function loadCarparks() {
   }
 }
 
-// Watch search context so navigating to a new destination reloads this same view.
 watch(() => [route.query.destination, route.query.latitude, route.query.longitude, route.query.vehicleType], () => {
   vehicleType.value = ['C', 'Y', 'H'].includes(route.query.vehicleType) ? route.query.vehicleType : 'C'
   favouriteSaved.value = false
@@ -454,15 +435,12 @@ h1 { font-size: clamp(2rem, 5vw, 3.25rem); }
 .demo-notice { padding: .85rem 1rem; background: #eef3f8; color: #40576a; border-radius: .65rem; font-size: .85rem; }
 .filter-panel { padding: 1.4rem 1.5rem; border: 2px solid #174f40; border-radius: 1.3rem; background: white; }
 .filter-panel .form-select { min-height: 3.2rem; border: 1.5px solid #174f40; border-radius: .8rem; }
-/* "Show only" toggle chip, styled like the card's "EV Charging" tag */
 .filter-chips { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
-/* Same height as the dropdowns next to it */
 .filter-chips .filter-chip { min-height: 3.2rem; padding-inline: 1rem; border-radius: .8rem; font-size: .9rem; }
 .filter-chip { display: inline-flex; align-items: center; gap: .35rem; min-height: 2.3rem; padding: .3rem .65rem; border: 1.5px solid #b8cec5; border-radius: 2rem; color: #40534c; background: white; font-size: .78rem; font-weight: 750; white-space: nowrap; transition: background .15s, border-color .15s, color .15s; }
 .filter-chip:hover { border-color: #0a9e70; }
 .filter-chip:focus-visible { outline: 2px solid #087a58; outline-offset: 2px; }
 .chip-leaf { width: 1rem; height: 1rem; color: #15803d; }
-/* Selected: same colours as the matching card tag */
 .chip-ev.on { border-color: #15803d; color: #15803d; background: #dcfce7; }
 .form-label { font-size: .8rem; font-weight: 600; }
 .state-panel { text-align: center; padding: 3rem 1rem; border: 1px dashed #becdc6; border-radius: 1rem; }

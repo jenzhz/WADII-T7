@@ -28,11 +28,8 @@ const vehicleOptions = [
   { value: 'H', label: 'Heavy vehicle' },
 ]
 
-// Recent searches: saved to the signed-in user's account, so they follow the
-// user to any browser or device. Failures are ignored (the feature is optional).
 const recentSearches = ref([])
 
-// Backend items -> same shape as OneMap results, so selectDestination() can use them
 function toDestination(item) {
   return { id: item.id, SEARCHVAL: item.label, LATITUDE: item.latitude, LONGITUDE: item.longitude }
 }
@@ -53,13 +50,12 @@ async function addRecentSearch(item) {
   try {
     setRecentSearches(await saveRecentSearch({ label: item.SEARCHVAL, latitude: item.LATITUDE, longitude: item.LONGITUDE }))
   } catch {
-    // Not saved; the search itself still works
   }
 }
 
 async function removeRecentSearch(item) {
   const previous = recentSearches.value
-  recentSearches.value = previous.filter(recent => recent.id !== item.id) // update the screen straight away
+  recentSearches.value = previous.filter(recent => recent.id !== item.id)
   try {
     setRecentSearches(await deleteRecentSearch(item.id))
   } catch {
@@ -77,7 +73,6 @@ async function clearRecentSearches() {
   }
 }
 
-// Clicking a recent search goes straight to the results
 function useRecentSearch(item) {
   selectDestination(item)
   goToResults()
@@ -110,7 +105,6 @@ watch(vehicleType, () => {
 
 
 async function searchDestination() {
-  // Only the latest request may update the suggestions, even on a slow connection.
   const requestId = ++searchRequest
   selectedDestination.value = null
   searchError.value = ''
@@ -144,8 +138,6 @@ function selectDestination(item) {
   saveSearch()
 }
 
-// "Use my current location": the browser's Geolocation API gives the user's
-// position, which is used as the destination (no typing needed).
 const locating = ref(false)
 const locationError = ref('')
 
@@ -160,7 +152,6 @@ function useCurrentLocation() {
     (position) => {
       locating.value = false
       const { latitude, longitude } = position.coords
-      // The app only has Singapore carpark data
       const inSingapore = latitude > 1.15 && latitude < 1.48 && longitude > 103.6 && longitude < 104.1
       if (!inSingapore) {
         locationError.value = 'Your location seems to be outside Singapore. Please search for a destination instead.'
@@ -194,7 +185,6 @@ function goToResults() {
   }
 
   saveSearch()
-  // "Current location" changes every time, so it is not kept in recent searches
   if (!selectedDestination.value.isCurrentLocation) addRecentSearch(selectedDestination.value)
 
   router.push({

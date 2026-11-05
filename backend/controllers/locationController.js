@@ -1,4 +1,3 @@
-// Location actions: OneMap destination search and walking routes.
 import { getWalkingRoute as fetchWalkingRoute, searchLocation } from '../services/oneMapService.js'
 
 
@@ -12,9 +11,7 @@ export async function searchLocations(request, response) {
   response.json(data)
 }
 
-// Walking routes rarely change, so results are kept in memory for a day.
-// This keeps the Results page fast and avoids repeated OneMap calls.
-const walkingCache = new Map() // key -> { value, expiresAt }
+const walkingCache = new Map()
 const WALKING_CACHE_MS = 24 * 60 * 60 * 1000
 const WALKING_CACHE_MAX = 2000
 
@@ -24,8 +21,6 @@ function coordinate(value, max) {
   return Number.isFinite(number) && Math.abs(number) <= max ? number : null
 }
 
-// GET /api/locations/walking-route?originLat=&originLng=&destLat=&destLng=
-// Returns only the summary the Results page needs: walking distance (m) and time (min).
 export async function getWalkingRoute(request, response, next) {
   try {
     const originLat = coordinate(request.query.originLat, 90)

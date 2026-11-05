@@ -1,18 +1,12 @@
 <script setup>
-// Shows parking rates as text for Weekdays, Saturday and Sunday & PH.
-// HDB: built from HDB rules. Malls: published rates from data/CarparkRates.csv.
 import { computed } from 'vue'
 
 const props = defineProps({
   rate: { type: Object, default: null },
   compact: { type: Boolean, default: false },
-  // Compare page already shows "Rate type" and "Rate now", so it hides this line
   showNow: { type: Boolean, default: true },
 })
 
-// "7am – 6pm: $2.14 first hour" -> { time: '7am – 6pm', price: '$2.14 first hour' }
-// so the time and the price can be shown in two columns. Lines without a short
-// "time:" prefix (e.g. long mall text from the CSV) are shown as they are.
 function splitLine(line) {
   const match = /^([^$:]{2,40}):\s*(.+)$/.exec(String(line))
   return match ? { time: match[1].trim(), price: match[2].trim() } : { time: null, price: line }
@@ -21,9 +15,7 @@ function splitLine(line) {
 const sections = computed(() => {
   const schedule = props.rate?.schedule
   if (!schedule) return []
-  // URA, or a mall without data: one box with a message
   if (schedule.message) return [{ label: null, lines: [schedule.message], isMessage: true }]
-  // HDB: Monday to Saturday / Sunday
   const list = schedule.sections || [
     { label: 'Weekdays', lines: schedule.weekday },
     { label: 'Saturday', lines: schedule.saturday },

@@ -8,10 +8,6 @@ import FilterDropdown from '@/components/FilterDropdown.vue'
 const route = useRoute()
 const router = useRouter()
 
-// Where the map was opened from decides what it shows (only Compare gets a "Back" link;
-// Results is always one click away in the navbar):
-//   from=results -> the same carparks as the Results page (radius, EV filter)
-//   from=compare -> only the compared carparks, numbered by their Compare rank (ids are in rank order)
 const fromCompare = route.query.from === 'compare'
 const compareIds = String(route.query.ids || '').split(',').filter(Boolean)
 const isCompareMode = fromCompare && compareIds.length > 0
@@ -23,7 +19,6 @@ const backLink = computed(() => {
     const { radius: _radius, ev: _ev, ...compareQuery } = query
     return { label: 'Back to compare', to: { name: 'compare', query: compareQuery } }
   }
-  // Results keeps the same distance and EV filter (radius, ev)
   return { label: 'Back to results', to: { name: 'results', query } }
 })
 let savedSearch = null
@@ -83,7 +78,6 @@ async function loadCarparks() {
       params: {
         ...destination.value,
         vehicleType,
-        // Compare mode: the compared carparks can be up to 5 km away (same as Results)
         radius: isCompareMode ? 5000 : Number(radius.value) || 0,
       },
     })

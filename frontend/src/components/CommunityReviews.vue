@@ -49,20 +49,14 @@ function apiMessage(err, fallback) {
   return err.response?.data?.message || fallback
 }
 
-// Re-read who is logged in. The page may have been opened while another
-// account was logged in (e.g. switching test accounts in another tab).
 function refreshUser() { user.value = getCurrentUser() }
 
-// Lists what is still missing, so a greyed-out button is never a mystery.
 const missingFields = computed(() => [
   !form.overallRating && 'overall rating',
   !form.parkingDifficulty && 'how easy it is to park',
   !form.comment.trim() && 'a written review',
 ].filter(Boolean))
 
-// First load shows "Loading reviews…". After that (posting, editing or deleting
-// a review/reply) the list stays on screen and is updated quietly in the
-// background, so the page does not flash or jump.
 let loadedCarparkId = null
 async function loadReviews() {
   refreshUser()
@@ -89,8 +83,6 @@ function startReview(review = null) {
   }
   showForm.value = true
   message.value = ''
-  // The form sits above the review list, so bring it into view
-  // (otherwise clicking Edit on a review further down looks like nothing happened).
   nextTick(() => {
     formEl.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     formEl.value?.querySelector('textarea')?.focus({ preventScroll: true })
@@ -317,13 +309,10 @@ watch(() => props.carparkId, loadReviews)
 .contributor-badge:hover { box-shadow: 0 0 0 2px #087a5825; }
 .review-author-line { flex-wrap: wrap; }
 .review-form { scroll-margin-top: 6rem; }
-/* Keep the line breaks people type in reviews and replies. */
 .review-comment, .reply p { white-space: pre-wrap; overflow-wrap: anywhere; }
-/* Your own name is plain text: your profile is already in the navbar. */
 .own-name { color: #173e30; }
 .own-name small { color: #6c7d76; font-weight: 500; }
 .missing-hint { margin: .5rem 0 0; color: #a02f2f; font-size: .85rem; }
-/* Date and Edit/Delete share one line, so your own reviews are no taller than others'. */
 .review-side { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .25rem .5rem; flex-shrink: 0; text-align: right; }
 .review-side .owner-actions { display: flex; align-items: center; }
 .review-time { color: #6c7d76; font-size: .8rem; white-space: nowrap; }

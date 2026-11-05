@@ -15,9 +15,6 @@ function numericQuery(value, name, minimum, maximum, fallback) {
   return Number(value)
 }
 
-/**
- * Extracts a coordinate pair from request query parameters.
- */
 function extractCoordsFromQuery(query, combinedKey, latKeys, lngKeys) {
   if (query[combinedKey] !== undefined) {
     const parts = typeof query[combinedKey] === 'string' ? query[combinedKey].split(',') : []
@@ -54,15 +51,6 @@ export async function getNearbyCarparks(request, response, next) {
   } catch (error) { next(error) }
 }
 
-/**
- * Controller that combines LTA DataMall real-time available lots and OneMap walking route metrics
- * for a single carpark.
- *
- * Mapped to:
- *   GET /api/carpark-details
- *   GET /api/carpark-details/:id
- *   GET /api/carparks/:id
- */
 export async function getCarparkDetails(request, response, next) {
   try {
     const carparkId = request.params.id || request.query.carparkId || request.query.id

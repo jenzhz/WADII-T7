@@ -12,9 +12,7 @@ const props = defineProps({
   contextQuery: { type: Object, default: () => ({}) },
   routeGeometry: { type: String, default: null },
   showActions: { type: Boolean, default: true },
-  // Compare page: show each carpark's rank (1, 2, 3) on its marker
   showRank: { type: Boolean, default: false },
-  // The carpark whose walking route is shown (its marker is highlighted)
   activeCarparkId: { type: String, default: null },
   mapHeight: { type: String, default: '30rem' },
 });
@@ -35,13 +33,11 @@ const destinationIcon = L.icon({
 
 
 
-// All carpark markers use the same filled pin shape as the destination pin.
-// Colour shows the status; the label is "P" (Map page) or the rank (Compare page).
 const PIN_COLOURS = {
   available: { fill: '#0f9b6e', text: '#ffffff' },
   full: { fill: '#c0392b', text: '#ffffff' },
-  top: { fill: '#f5b400', text: '#3d2c00' }, // Compare: recommended
-  other: { fill: '#0f5c4d', text: '#ffffff' }, // Compare: other choices
+  top: { fill: '#f5b400', text: '#3d2c00' },
+  other: { fill: '#0f5c4d', text: '#ffffff' },
 }
 
 function pinIcon(tone, label, { active = false } = {}) {
@@ -61,7 +57,6 @@ function pinIcon(tone, label, { active = false } = {}) {
   })
 }
 
-// Legend entries: the same pins as on the map
 const legendItems = computed(() => props.showRank
   ? [
       { label: 'Recommended', symbol: '★', ...legendColour('top') },
@@ -76,14 +71,12 @@ function legendColour(tone) {
   return { fill: PIN_COLOURS[tone].fill, text: PIN_COLOURS[tone].text }
 }
 
-// Compare page: #1 (recommended) is gold with a star, others green, full ones red
 function rankIcon(carpark) {
   const full = carpark.availableLots != null && Number(carpark.availableLots) === 0
   const tone = full ? 'full' : carpark.rank === 1 ? 'top' : 'other'
   return pinIcon(tone, carpark.rank === 1 ? '★' : carpark.rank, { active: carpark.id === props.activeCarparkId })
 }
 
-// Styled popups (see .cc-popup styles below)
 const POPUP_OPTIONS = { className: 'cc-popup', minWidth: 200, maxWidth: 260 }
 
 function getRoutePoints() {
@@ -110,7 +103,6 @@ function renderMarkers() {
   const bounds = []
   const routePoints = getRoutePoints()
 
-  // the route line
   if (routePoints.length > 0) {
     routeLayer = L.polyline(routePoints, {
       color: '#0a9e70',
@@ -119,7 +111,6 @@ function renderMarkers() {
     bounds.push(...routePoints)
   }
 
-  // destination marker
   if (props.destination && Number.isFinite(props.destination.latitude) && Number.isFinite(props.destination.longitude)) {
     L.marker([props.destination.latitude, props.destination.longitude], {
       icon: destinationIcon,
@@ -138,7 +129,6 @@ function renderMarkers() {
   }
 
   for (const carpark of props.carparks) {
-    // carpark marker
     if (!Number.isFinite(carpark.latitude) || !Number.isFinite(carpark.longitude)) continue
     const unavailable = carpark.availableLots == null || Number(carpark.availableLots) === 0
     const ranked = props.showRank && carpark.rank != null

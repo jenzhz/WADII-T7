@@ -32,7 +32,6 @@ test('pagination, cache, radius and vehicle filtering', async () => {
   let evRequests = 0
   globalThis.fetch = async (url, options) => {
     assert.equal(options.headers.AccountKey, 'test-only')
-    // EV discovery is a separate request, not an availability page.
     if (new URL(url).pathname.endsWith('/EVCBatch')) {
       evRequests += 1
       return { ok: true, json: async () => ({ value: [] }) }

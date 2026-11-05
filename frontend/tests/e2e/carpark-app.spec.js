@@ -1,4 +1,3 @@
-// Week 10c: open a page, perform actions, then check what the user sees.
 import { test, expect } from '@playwright/test'
 
 test('shows an error when the login details are incorrect', async ({ page }) => {
@@ -20,7 +19,6 @@ test('logs in, searches for a destination and opens the contributor levels', asy
   await expect(page.getByRole('heading', { name: 'Find parking near your destination' })).toBeVisible()
 
   await page.getByRole('textbox', { name: 'Destination' }).fill('Suntec')
-  // A recent-search button can have the same name; choose the OneMap suggestion.
   await page.getByRole('list', { name: 'Destination suggestions' })
     .getByRole('button', { name: 'SUNTEC CITY', exact: true }).click()
   await page.getByRole('button', { name: 'Search', exact: true }).click()

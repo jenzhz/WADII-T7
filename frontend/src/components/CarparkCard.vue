@@ -15,9 +15,6 @@ const props = defineProps({
 })
 const emit = defineEmits(['toggle-compare', 'toggle-favourite'])
 
-// Clicking anywhere on the card selects it for Compare.
-// Clicks on the heart or "View details" keep their own behaviour.
-// Keyboard: Tab to the card, then Enter or Space.
 const canToggle = computed(() => props.selected || !props.selectionDisabled)
 function onCardClick(event) {
   if (event.target !== event.currentTarget && event.target.closest('a, button, input, label')) return
@@ -155,7 +152,6 @@ const detailsQuery = computed(() => ({
 .carpark-name { margin: 0 0 .25rem; color: #10243a; font-size: 1.15rem; font-weight: 750; line-height: 1.3; }
 .carpark-meta { margin: 0 0 .75rem; color: #63716a; font-size: .82rem; }
 
-/* One style for every tag */
 .tag-row { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .75rem; }
 .tag { display: inline-flex; align-items: center; gap: .3rem; min-height: 1.6rem; padding: .2rem .6rem; border-radius: 2rem; font-size: .72rem; font-weight: 750; white-space: nowrap; }
 .tag-ev { background: #dcfce7; color: #15803d; }

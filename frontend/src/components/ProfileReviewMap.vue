@@ -7,7 +7,6 @@ import 'leaflet/dist/leaflet.css'
 const props = defineProps({ locations: { type: Array, default: () => [] } })
 const router = useRouter()
 const mapElement = ref(null)
-// Same green "P" pin as the Results / Map / Compare maps (see CarparkMap.vue)
 const PIN_PATH = 'M16 1C7.7 1 1 7.7 1 16c0 10 15 23 15 23s15-13 15-23C31 7.7 24.3 1 16 1Z'
 const reviewIcon = L.divIcon({
   className: 'cc-pin',
@@ -29,7 +28,6 @@ function renderLocations() {
   const bounds = []
 
   for (const location of props.locations) {
-    // Use textContent so carpark names are displayed as text inside the popup.
     const popup = document.createElement('div')
     popup.className = 'profile-map-popup'
     const name = document.createElement('strong')

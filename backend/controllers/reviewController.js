@@ -163,7 +163,6 @@ function addContributorBadge(review, contributors) {
 
 export async function getMyReviews(request, response, next) {
   try {
-    // Use the signed-in account, rather than a user ID supplied by the browser.
     const reviews = await Review.find({ user: request.user.id })
       .sort({ updatedAt: -1 })
       .select('carparkId overallRating lotSpaciousness entranceExitAccessibility signage pricing parkingDifficulty helpfulBy comment createdAt updatedAt')
@@ -189,7 +188,6 @@ export async function getUserReviews(request, response, next) {
       .select('carparkId overallRating lotSpaciousness entranceExitAccessibility signage pricing parkingDifficulty helpfulBy comment createdAt updatedAt')
       .lean()
 
-    // Other users can see the display name and reviews, but no account credentials.
     return response.json({
       success: true,
       user: { id: user._id.toString(), name: user.name, createdAt: user.createdAt },

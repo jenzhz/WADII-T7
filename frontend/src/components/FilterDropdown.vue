@@ -1,16 +1,12 @@
 <script setup>
 // Bootstrap Dropdown (https://getbootstrap.com/docs/5.3/components/dropdowns/)
-// used as a nicer-looking replacement for a native <select>. Works with v-model.
-// Opening/closing is handled by Bootstrap's JS (bootstrap.bundle is loaded in main.js).
 import { computed } from 'vue'
 
 const props = defineProps({
   id: { type: String, required: true },
   label: { type: String, required: true },
   modelValue: { type: [String, Number], default: null },
-  // [{ value, label, icon? }]
   options: { type: Array, required: true },
-  // Optional class for the label, so each page can keep its own label style
   labelClass: { type: [String, Array, Object], default: 'form-label' },
 })
 const emit = defineEmits(['update:modelValue', 'change'])

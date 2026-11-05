@@ -1,4 +1,3 @@
-// Week 10a: test JavaScript functions with describe(), it() and expect().
 import { describe, it, expect } from 'vitest'
 import { formatDistance } from '../carparkResults'
 import { rankCarparks } from '../ranking'

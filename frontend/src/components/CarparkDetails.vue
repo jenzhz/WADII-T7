@@ -88,7 +88,6 @@ const availabilityBadge = computed(() => {
 
 const formattedDistance = computed(() => {
   const raw = carparkDetails.value?.walkingDistance
-  // Number(null) is 0, so check for "no value" first, otherwise it shows "0 m"
   if (raw == null || raw === '' || !hasWalkingInfo.value) return '—'
   const meters = Number(raw)
   if (!Number.isFinite(meters)) return '—'
@@ -98,8 +97,6 @@ const formattedDistance = computed(() => {
   return `${meters} m`
 })
 
-// Walking figures only exist when the page was opened for a destination
-// (from Results / Compare / Map). From a profile or Community there is none.
 const hasWalkingInfo = computed(() =>
   Boolean(carparkDetails.value?.destination) && carparkDetails.value?.walkingDistance != null
 )

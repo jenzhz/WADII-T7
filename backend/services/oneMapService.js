@@ -1,7 +1,4 @@
-/**
- * Service adapter for OneMap search, coordinates, and routing requests.
- * Docs: https://www.onemap.gov.sg/apidocs/
- */
+// OneMap API: https://www.onemap.gov.sg/apidocs/
 
 import axios from 'axios'
 
@@ -13,12 +10,7 @@ function serviceError(message, status = 502) {
   return Object.assign(new Error(message), { status })
 }
 
-// ---------------------------------------------------------------------------
-// OneMap tokens expire after 3 days. If ONEMAP_EMAIL and ONEMAP_PASSWORD are set
-// in backend/.env, the backend gets a new token by itself before the old one
-// expires. Otherwise it falls back to the fixed ONEMAP_TOKEN.
-// ---------------------------------------------------------------------------
-let cachedToken = null // { value, expiresAt }
+let cachedToken = null
 let tokenRequest = null
 
 function tokenExpiry(token) {
@@ -55,7 +47,6 @@ async function requestNewToken() {
   return cachedToken.value
 }
 
-// Returns a valid token, renewing it 10 minutes before it expires.
 async function getOneMapToken({ forceRefresh = false } = {}) {
   const canRenew = process.env.ONEMAP_EMAIL?.trim() && process.env.ONEMAP_PASSWORD
   if (canRenew) {
@@ -78,10 +69,6 @@ async function getOneMapToken({ forceRefresh = false } = {}) {
   return token
 }
 
-/**
- * Helper to normalize coordinate input into { lat, lng } numbers.
- * Accepts { lat, lng }, { latitude, longitude }, or a "lat,lng" string.
- */
 function parseCoordinates(coord, label) {
   if (!coord) {
     throw serviceError(`${label} coordinates are required.`, 400)
@@ -138,13 +125,6 @@ export async function searchLocation(destination) {
   }
 }
 
-/**
- * Calls the OneMap Routing API to calculate walking distance (metres) and
- * estimated walk time (minutes) between origin and destination coordinates.
- *
- * @param {Object|string} origin - Origin coordinates ({ lat, lng } or "lat,lng")
- * @param {Object|string} destination - Destination coordinates ({ lat, lng } or "lat,lng")
- */
 export async function getWalkingRoute(origin, destination) {
   const start = parseCoordinates(origin, 'Origin')
   const end = parseCoordinates(destination, 'Destination')
@@ -171,7 +151,6 @@ export async function getWalkingRoute(origin, destination) {
   }
 
   let response = await callRouting(await getOneMapToken())
-  // Token rejected: renew once and retry (only possible with ONEMAP_EMAIL / ONEMAP_PASSWORD)
   if ([401, 403].includes(response.status) && process.env.ONEMAP_EMAIL?.trim() && process.env.ONEMAP_PASSWORD) {
     response = await callRouting(await getOneMapToken({ forceRefresh: true }))
   }

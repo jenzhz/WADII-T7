@@ -1,8 +1,6 @@
 :root {
-  /* Fonts are loaded in index.html (Google Fonts) */
   --font-body: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-display: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  /* Tell Bootstrap to use the same body font (otherwise it uses the system font) */
   --bs-body-font-family: var(--font-body);
   --bs-font-sans-serif: var(--font-body);
   color: #17202a;
@@ -102,7 +100,6 @@ h1 {
   letter-spacing: -0.04em;
 }
 
-/* Headings and the logo use the display font; page titles are extra bold */
 h1, h2, h3, h4, h5, h6,
 .h1, .h2, .h3, .h4, .h5, .h6,
 .navbar-brand {

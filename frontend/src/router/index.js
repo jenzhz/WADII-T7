@@ -35,7 +35,6 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAuth && !signedIn) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
-  // Links to your own name should use the personal profile, wherever they appear.
   if (to.name === 'user-profile' && to.params.userId === getCurrentUser()?.id) {
     return { name: 'profile', query: to.query, hash: to.hash, replace: true }
   }

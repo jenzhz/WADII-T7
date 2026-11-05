@@ -20,7 +20,6 @@ const isProduction = process.env.NODE_ENV === 'production'
 if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is not configured in backend/.env')
 if (!process.env.SESSION_SECRET) throw new Error('SESSION_SECRET is not configured in backend/.env')
 
-// Vercel loads this app directly; local database startup stays in server.js.
 if (process.env.VERCEL === '1') {
   app.set('trust proxy', 1)
   await connectDatabase(process.env.MONGODB_URI)
@@ -51,11 +50,9 @@ app.get('/api/health', (_request, response) => {
   response.json({ success: true, message: 'CarparkCompare API is running' })
 })
 
-// REST routes return JSON so they can be called by Vue and tested in Postman.
 app.use('/api/users', userRoutes)
 app.use('/api/reviews', reviewRoutes)
 app.use('/api/favourites', requireAuth, favouriteRoutes)
-// Read-only discovery endpoints are public; Vue still protects operational parking pages.
 app.use('/api/carparks', carparkRoutes)
 app.use('/api/carpark-details', carparkRoutes)
 app.use('/api/locations', locationRoutes)

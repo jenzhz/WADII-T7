@@ -36,7 +36,6 @@ const reviewedLocations = computed(() => {
     if (!carpark || !Number.isFinite(carpark.latitude) || !Number.isFinite(carpark.longitude) ||
       Math.abs(carpark.latitude) > 90 || Math.abs(carpark.longitude) > 180) continue
 
-    // Different vehicle types at the same coordinates share a single pin.
     const key = `${carpark.latitude}:${carpark.longitude}`
     if (!locations.has(key)) {
       locations.set(key, { name: carpark.name || review.carparkId, latitude: carpark.latitude, longitude: carpark.longitude, reviews: [] })
@@ -63,7 +62,6 @@ async function loadProfile() {
       const [response, reviewProfile] = await Promise.all([api.get('/users/profile'), getMyReviews()])
       profile = { user: response.data.user, reviews: reviewProfile.reviews, contributor: reviewProfile.contributor }
     }
-    // Ignore an old response if another profile has been opened in the meantime.
     if (requestId !== profileRequest) return
     user.value = profile.user
     reviews.value = profile.reviews
@@ -115,8 +113,6 @@ function formattedDate(value) {
   return new Date(value).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// Go back to wherever the user came from (carpark details, Community…).
-// If the page was opened directly (no history), fall back to Community.
 function goBack() {
   if (window.history.state?.back) router.back()
   else router.push({ name: 'community' })

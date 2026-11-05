@@ -1,6 +1,3 @@
-// Converts data/CarparkRates.csv into data/carparkRates.json for the backend.
-// Run from the backend folder:  npm run rates:build
-// Re-run whenever CarparkRates.csv is replaced with a newer download.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { looseNames, normaliseName } from '../utils/rateNames.js'
@@ -8,7 +5,6 @@ import { looseNames, normaliseName } from '../utils/rateNames.js'
 const csvPath = fileURLToPath(new URL('../data/CarparkRates.csv', import.meta.url))
 const jsonPath = fileURLToPath(new URL('../data/carparkRates.json', import.meta.url))
 
-// Small CSV parser that understands quoted fields such as "Central, North & North East"
 function parseCsv(text) {
   const rows = []
   let row = []
@@ -31,7 +27,6 @@ function parseCsv(text) {
   return rows.filter(r => r.some(cell => cell.trim()))
 }
 
-// "-" or empty means "no value"
 function clean(value) {
   const text = String(value ?? '').replace(/\s+/g, ' ').trim()
   return text === '' || text === '-' ? null : text
@@ -44,7 +39,6 @@ function buildSchedule(row) {
   const rate1 = clean(row.weekdays_rate_1)
   const rate2 = clean(row.weekdays_rate_2)
 
-  // Weekday = rate 1 + rate 2 combined (skip rate 2 if it repeats rate 1)
   const weekday = [rate1, rate2].filter(Boolean)
     .filter((text, index, list) => list.indexOf(text) === index && !isSameAsWeekdays(text))
 
@@ -93,7 +87,6 @@ for (const line of lines) {
   carparks[key] = entry
 }
 
-// Looser names, e.g. "pomo" -> "pomo fomerly paradiz centre", "junction 8" -> "junction 8 shopping centre".
 // Only kept when exactly one carpark has that short name (avoids mixing up
 // "Sentosa (Tanjong ...)" and "Sentosa (Siloso ...)").
 const shortNames = {}

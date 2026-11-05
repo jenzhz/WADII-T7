@@ -1,4 +1,3 @@
-// Converts available-lot data to a comparable value in a future scoring formula.
 export function normaliseAvailability(lots) {
   const cap = 50
   if (lots == null){
@@ -8,7 +7,6 @@ export function normaliseAvailability(lots) {
   return Math.min(ratio , 1)
 }
 
-// Converts walking time to a comparable value in a future scoring formula.
 export function normaliseWalkingTime(minutes) {
   const cap =12
   if (minutes == null ){
@@ -27,14 +25,12 @@ export function getWalkingMinutes(carpark) {
   return null
 }
 
-// Will combine agreed weightages after the team defines the scoring formula.
 export function calculateScore(carpark, weight) {
   const lotsScore = normaliseAvailability(carpark.availableLots)
   const walkScore = normaliseWalkingTime(getWalkingMinutes(carpark))
   return lotsScore * weight.lots + walkScore * weight.walk
 }
 
-// Will score and order carparks without mutating the original array.
 export function rankCarparks(carparks, weight) {
   const availableLots = carparks
     .map(carpark => carpark.availableLots)

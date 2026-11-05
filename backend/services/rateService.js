@@ -14,15 +14,9 @@ const CENTRAL_AREA = new Set([
   'KAS', 'PRM', 'SLS', 'SR1', 'SR2', 'TPM', 'UCS', 'WCB',
 ])
 
-// Rates for non-HDB carparks (malls, commercial buildings), built from
-// data/CarparkRates.csv by `npm run rates:build`.
 const ratesFile = JSON.parse(readFileSync(new URL('../data/carparkRates.json', import.meta.url), 'utf8'))
 
-// LTA name -> name used in the rates CSV, for carparks whose names differ.
-// Run `npm run rates:check` to list carparks that still have no rates.
-// Keys are written exactly as LTA DataMall spells them (they are normalised below).
 const RATE_ALIASES = Object.fromEntries(Object.entries({
-  // LTA carparks with short names or newer names
   'Bt Panjang Plaza': 'Bukit Panjang Plaza',
   'CQ @ Clarke Quay': 'Clarke Quay',
   'Centrepoint': 'The Centrepoint',
@@ -61,12 +55,9 @@ export function isCentralArea(carparkId) {
   return CENTRAL_AREA.has(String(carparkId || '').toUpperCase())
 }
 
-// Car rate for one 30-minute block starting at `date`.
-// Central Area: $1.20 Mon-Sat 7am-5pm, otherwise $0.60.
-// Singapore is always UTC+8 (no daylight saving), so this works on any server timezone.
 function singaporeTime(date) {
   const sg = new Date(date.getTime() + 8 * 60 * 60_000)
-  return { day: sg.getUTCDay(), hour: sg.getUTCHours() } // day 0 = Sunday
+  return { day: sg.getUTCDay(), hour: sg.getUTCHours() }
 }
 
 function hdbCarRate(carparkId, date) {
@@ -75,19 +66,9 @@ function hdbCarRate(carparkId, date) {
   return centralPeak ? CENTRAL_PEAK_RATE : CAR_RATE
 }
 
-// Current rate for display:
-//   HDB -> HDB rules above
-//   LTA -> CarparkRates.csv ("Varies by time", full rates on details/compare), or "Varies" when the CSV has no entry
-//   URA -> dash, with "Rate information is currently not available." in the rates box
-// rateType (shown to users): "HDB (Within Central Area)", "HDB (Outside Central Area)",
-// "Mall" (LTA) or "Public carpark" (URA);
-// label: short text for cards; detail: longer text for compare/details pages;
-// costLabel: what to show instead of an estimated cost when it cannot be calculated.
 export function getRateInfo(carpark, date = new Date()) {
-  // Demo mode: sample weekday/weekend rates for every carpark type (see mockRates.js)
   if (isMockRatesEnabled()) return getMockRateInfo(carpark, date)
   if (carpark.agency === 'URA') {
-    // Sample rates until the real URA API is connected (see mockUraRates.js)
     if (isMockUraEnabled()) return getMockUraRateInfo(carpark, date)
     return {
       per30Min: null,
@@ -121,9 +102,6 @@ export function getRateInfo(carpark, date = new Date()) {
 
 }
 
-// Estimated cost for parking `minutes` from `start`. Adds each 30-minute block
-// separately so a stay that crosses 5pm uses the correct rate for each block.
-// Returns null when the carpark is not HDB (rate unknown).
 export function estimateCost(carpark, minutes, start = new Date()) {
   if (isMockRatesEnabled()) return estimateMockCost(carpark, minutes, start)
   if (carpark.agency === 'URA' && isMockUraEnabled()) return estimateMockUraCost(carpark, minutes, start)
@@ -138,12 +116,9 @@ export function estimateCost(carpark, minutes, start = new Date()) {
   return Math.round(total * 100) / 100
 }
 
-// HDB rate for "now" plus the full rate schedule shown on compare/details pages.
 const HDB_SOURCE = 'HDB short-term parking charges'
 
-// HDB schedule is shown as "Monday to Saturday" and "Sunday".
-// Sunday is not in "7:00am to 5:00pm, Monday to Saturday", so it falls under
-// "Other hours" in the HDB table. Public holidays are not mentioned, so not shown.
+// The source does not specify public-holiday rules.
 function hdbSchedule(carpark) {
   const half = value => `$${value.toFixed(2)} / 30 min`
   const sameEveryDay = lines => ({ sections: [

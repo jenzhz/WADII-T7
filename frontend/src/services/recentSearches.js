@@ -1,7 +1,5 @@
 import api from './api'
 
-// Recent destination searches, saved to the signed-in user's account (MongoDB).
-// The backend keeps the newest 5 and moves a repeated destination to the top.
 
 export async function getRecentSearches() {
   const { data } = await api.get('/users/recent-searches')

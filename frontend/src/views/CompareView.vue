@@ -48,7 +48,7 @@ async function loadCarparks() {
         latitude: route.query.latitude,
         longitude: route.query.longitude,
         vehicleType: route.query.vehicleType || 'C',
-        radius: 5000, // Results lets users pick carparks up to 5 km away
+        radius: 5000,
         duration: duration.value,
       }
     })
@@ -78,7 +78,6 @@ onMounted(async () => {
   await loadCarparks()
 })
 
-// Community rating and parking difficulty for the selected carparks
 const communitySummaries = ref(new Map())
 async function loadCommunity() {
   try {
@@ -91,8 +90,6 @@ async function loadCommunity() {
 const communityFor = carpark => communitySummaries.value.get(carpark.id) || null
 const difficultyFor = carpark => parkingDifficultyDetails(communityFor(carpark)?.parkingDifficulty)
 
-// Real walking distance and time (same OneMap route as Results and the details page).
-// At most 3 carparks are compared, so all of them are fetched.
 async function loadWalking() {
   await Promise.all(selectedCarparks.value.map(async carpark => {
     if (carpark.walkingDistance != null || carpark.latitude == null || carpark.longitude == null) return
@@ -104,13 +101,10 @@ async function loadWalking() {
         ? { ...item, walkingDistance: data.walkingDistance, walkingTime: data.walkingTime }
         : item)
     } catch {
-      // Keep the straight-line estimate
     }
   }))
 }
 
-// Map of the compared carparks: numbered markers match the card ranks.
-// Clicking "Show walking route" on a marker draws the route to the destination.
 const mapDestination = computed(() => ({
   latitude: Number(route.query.latitude),
   longitude: Number(route.query.longitude),
@@ -145,7 +139,6 @@ async function showRoute(carpark) {
   }
 }
 
-// Walking distance when known, otherwise straight-line distance
 const distanceOf = carpark => carpark.walkingDistance ?? carpark.distance ?? null
 
 function lotsClass(carpark) {
@@ -155,8 +148,6 @@ function lotsClass(carpark) {
   return lots <= 20 ? 'lots-limited' : 'lots-available'
 }
 
-// When the duration changes, only update the estimated costs.
-// The cards stay on screen (no "Loading carparks…"); only the cost line shows "Updating…".
 const updatingCost = ref(false)
 const costError = ref('')
 let costRequestId = 0
@@ -172,11 +163,11 @@ async function refreshCosts() {
         latitude: route.query.latitude,
         longitude: route.query.longitude,
         vehicleType: route.query.vehicleType || 'C',
-        radius: 5000, // Results lets users pick carparks up to 5 km away
+        radius: 5000,
         duration: duration.value,
       }
     })
-    if (requestId !== costRequestId) return // a newer duration was chosen; ignore this answer
+    if (requestId !== costRequestId) return
     const costs = new Map(response.data.carparks.map(carpark => [String(carpark.id), carpark.estimatedCost ?? null]))
     selectedCarparks.value = selectedCarparks.value.map(carpark =>
       costs.has(carpark.id) ? { ...carpark, estimatedCost: costs.get(carpark.id) } : carpark
@@ -193,10 +184,7 @@ async function refreshCosts() {
 watch(duration, refreshCosts)
 
 const ranked = computed(() => rankCarparks(selectedCarparks.value, weightOptions[preference.value]))
-// Responsive columns: 3 cards -> 3 / 2 / 1 per row (large / tablet / phone),
-// 2 cards -> 2 / 2 / 1
 const columnClass = computed(() => (ranked.value.length >= 3 ? 'col-md-6 col-lg-4' : 'col-md-6'))
-// Most available lots among the selected carparks (null values are skipped)
 const bestLots = computed(() => {
   let best = null
   for (const carpark of ranked.value) {
@@ -207,7 +195,6 @@ const bestLots = computed(() => {
   return best
 })
 
-// Shortest distance among the selected carparks (walking distance when known)
 const bestDistance = computed(() => {
   let best = null
   for (const carpark of ranked.value) {
@@ -217,7 +204,6 @@ const bestDistance = computed(() => {
   return best
 })
 
-// Cheapest estimated cost among the selected carparks (unknown costs are skipped)
 const bestCost = computed(() => {
   let best = null
   for (const carpark of ranked.value) {
@@ -228,7 +214,6 @@ const bestCost = computed(() => {
   return best
 })
 
-// HDB: calculated cost. LTA: "Varies". URA: dash.
 function formatCost(carpark) {
   if (costError.value) return 'Unavailable'
   if (carpark.estimatedCost != null) return `$${carpark.estimatedCost.toFixed(2)}`
@@ -427,7 +412,6 @@ function formatCost(carpark) {
   background: #e6f4f0;
   color: #0f5c4d;
 }
-/* 0 available lots: red, never green */
 .metrics .full {
   background: #fce5e5;
   color: #9f3030;

@@ -1,5 +1,3 @@
-// Week 10b: mount a parent with its real StarRating child.
-// Only RouterLink is stubbed because navigation is not part of this test.
 import { mount } from '@vue/test-utils'
 import { describe, it, expect } from 'vitest'
 import CommunityCarparkCard from '../CommunityCarparkCard.vue'

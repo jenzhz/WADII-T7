@@ -19,7 +19,6 @@ async function sendRecentSearches(userId, response, status = 200) {
   return response.status(status).json({ success: true, recentSearches: user.recentSearches.map(publicRecentSearch) })
 }
 
-// GET /api/users/recent-searches
 export async function listRecentSearches(request, response, next) {
   try {
     return await sendRecentSearches(request.user.id, response)
@@ -28,8 +27,6 @@ export async function listRecentSearches(request, response, next) {
   }
 }
 
-// POST /api/users/recent-searches  { label, latitude, longitude }
-// Moves an existing destination with the same name to the top instead of adding a duplicate.
 export async function addRecentSearch(request, response, next) {
   try {
     const label = String(request.body.label || '').trim()
@@ -63,7 +60,6 @@ export async function addRecentSearch(request, response, next) {
   }
 }
 
-// DELETE /api/users/recent-searches/:id
 export async function deleteRecentSearch(request, response, next) {
   try {
     if (!mongoose.isValidObjectId(request.params.id)) {
@@ -76,7 +72,6 @@ export async function deleteRecentSearch(request, response, next) {
   }
 }
 
-// DELETE /api/users/recent-searches
 export async function clearRecentSearches(request, response, next) {
   try {
     await User.updateOne({ _id: request.user.id }, { $set: { recentSearches: [] } })

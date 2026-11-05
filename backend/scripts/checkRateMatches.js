@@ -1,6 +1,3 @@
-// Shows which LTA-agency carparks (malls, commercial buildings) have (or do not have) rates in the CSV.
-// HDB uses rules and URA shows a dash, so they are not checked.
-// Run from the backend folder (needs LTA_API_KEY in .env):  npm run rates:check
 import 'dotenv/config'
 import { getCarparkAvailability } from '../services/ltaService.js'
 import { findRateSchedule } from '../services/rateService.js'

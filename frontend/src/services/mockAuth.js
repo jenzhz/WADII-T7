@@ -46,8 +46,7 @@ async function buildAccount({ name, email, password }) {
   }
 }
 
-// Development-only browser storage. Replace calls to this file with the shared
-// Axios client when the Express/MongoDB authentication endpoints are implemented.
+// Development-only accounts stored in the browser.
 export async function ensureMockAccounts() {
   const existingAccounts = readJson(ACCOUNTS_KEY, null)
   if (Array.isArray(existingAccounts)) {

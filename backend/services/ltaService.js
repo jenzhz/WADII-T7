@@ -19,10 +19,7 @@ export function distanceInMetres(lat1, lng1, lat2, lng2) {
   return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)))
 }
 
-/**
- * Parses a single EV location entry from LTA DataMall's EVCBatch dataset.
- * Note: LTA DataMall's schema spells longitude as "longtitude".
- */
+// LTA's EVCBatch schema spells longitude as "longtitude".
 function mapEvLocation(loc) {
   const latitude = Number(loc?.latitude ?? loc?.Latitude ?? loc?.lat)
   const longitude = Number(loc?.longtitude ?? loc?.longitude ?? loc?.Longitude ?? loc?.lng)
@@ -63,10 +60,6 @@ function mapEvLocation(loc) {
   }
 }
 
-/**
- * Fetches EV charging point availability from LTA DataMall (EVCBatch).
- * Cached for 5 minutes to match LTA's 5-minute batch update interval.
- */
 export async function getEvChargingLocations() {
   if (!process.env.LTA_API_KEY?.trim()) return []
   if (evCached && Date.now() - evCached.time < 5 * 60_000) return evCached.data
@@ -121,9 +114,7 @@ export async function getEvChargingLocations() {
   }
 }
 
-/**
- * Checks whether a carpark has available EV charging points nearby (within 150m).
- */
+// Matches chargers within 150 m; this does not guarantee they are inside the carpark.
 function attachEvAvailability(carpark, evLocations) {
   if (carpark.latitude === null || carpark.longitude === null || !Array.isArray(evLocations) || evLocations.length === 0) {
     return { ...carpark, hasEvCharger: false, evAvailableLots: 0 }
@@ -150,7 +141,6 @@ export function mapCarpark(row) {
     Math.abs(coordinates[0]) <= 90 && Math.abs(coordinates[1]) <= 180
   const lots = row.AvailableLots === '' || row.AvailableLots == null ? NaN : Number(row.AvailableLots)
   return {
-    // Keep the official ID separately; keys also distinguish agency and lot type.
     id: `${row.Agency}:${row.CarParkID}:${row.LotType}`,
     carparkId: String(row.CarParkID),
     name: row.Development || `Carpark ${row.CarParkID}`,
@@ -168,7 +158,6 @@ export function mapCarpark(row) {
   }
 }
 
-// Fetch every page, not only the first 500 records. One shared fetch per minute.
 export async function getCarparkAvailability(carparkId, lotType = 'C') {
   if (!process.env.LTA_API_KEY?.trim()) {
     throw serviceError('Set LTA_API_KEY in backend/.env, then restart the backend.', 503)
@@ -224,7 +213,6 @@ export async function getCarparkAvailability(carparkId, lotType = 'C') {
     }
   }
 
-  // If a specific carparkId is requested, find and return that specific carpark's availability
   if (carparkId !== undefined && carparkId !== null && String(carparkId).trim() !== '') {
     return getCarparkAvailabilityById(carparkId, lotType, allData)
   }
@@ -232,10 +220,6 @@ export async function getCarparkAvailability(carparkId, lotType = 'C') {
   return allData
 }
 
-/**
- * Retrieves real-time available lots and metadata for a specific Carpark ID from LTA DataMall.
- * Supports both raw CarParkID (e.g., "1") and composite IDs (e.g., "LTA:1:C").
- */
 export async function getCarparkAvailabilityById(carparkId, lotType = 'C', preloadedData = null) {
   const target = String(carparkId || '').trim()
   if (!target) {
@@ -246,7 +230,6 @@ export async function getCarparkAvailabilityById(carparkId, lotType = 'C', prelo
   const normalizedTarget = target.toLowerCase()
   const normalizedLotType = String(lotType || 'C').toUpperCase()
 
-  // Match by composite id ("Agency:CarParkID:LotType") or by official CarParkID
   const exactCompositeMatch = data.carparks.find(
     row => String(row.id).toLowerCase() === normalizedTarget
   )

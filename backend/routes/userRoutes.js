@@ -15,7 +15,6 @@ router.post('/login', loginUser)
 router.post('/logout', requireAuth, logoutUser)
 router.get('/profile', requireAuth, getCurrentUser)
 
-// Recent destination searches, saved to the signed-in user's account
 router.get('/recent-searches', requireAuth, listRecentSearches)
 router.post('/recent-searches', requireAuth, addRecentSearch)
 router.delete('/recent-searches', requireAuth, clearRecentSearches)

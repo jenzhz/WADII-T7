@@ -11,8 +11,6 @@ const mapTarget = ref('/map')
 const hasSavedSearch = ref(false)
 const currentUser = ref(getCurrentUser())
 const signedIn = ref(Boolean(currentUser.value))
-// Hamburger menu below the desktop breakpoint. Controlled by Vue instead of Bootstrap's
-// data attributes, so it can close itself after every page change.
 const menuOpen = ref(false)
 
 function refreshAuth() {
@@ -179,9 +177,7 @@ header {
 }
 
 .logout-button { border-color: #087a58; border-radius: 2rem; color: #075d45; font-weight: 700; white-space: nowrap; }
-/* Same look as the other links; it only turns green on your own profile page. */
 .navbar-user { display: inline-flex; align-items: center; }
-/* Collapse before the brand and all navigation links become too wide for one row. */
 .navbar-toggler { border: 1.5px solid #174f40; border-radius: .7rem; padding: .35rem .6rem; }
 .navbar-toggler:focus { box-shadow: 0 0 0 .2rem #2cd79040; }
 @media (max-width: 1199.98px) {

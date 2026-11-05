@@ -1,4 +1,3 @@
-// Week 10b: mount one real component and check its behaviour.
 import { mount } from '@vue/test-utils'
 import { describe, it, expect } from 'vitest'
 import StarRating from '../StarRating.vue'
